@@ -1,0 +1,12 @@
+.DS_Store
+.idea/
+__pycache__/
+*.pyc
+.venv/
+
+data/raw/*.csv
+!data/raw/.gitkeep
+
+artifacts/
+*.duckdb
+*.duckdb.wal
