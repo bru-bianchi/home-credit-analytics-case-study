@@ -66,6 +66,13 @@ Tabelas `raw` previstas no escopo inicial:
     └── terraform/
 ```
 
+## Visão geral da pasta data
+
+- `data/raw/`: arquivos originais recebidos da fonte, mantidos intocados.
+- `data/warehouse/`: arquivo DuckDB local com as camadas analíticas do projeto.
+
+Para informações detalhadas, consulte `docs/organizacao_de_dados.md`
+
 ## Nota de arquitetura
 
 - O `DuckDB` foi escolhido neste projeto como engine analítica local e de desenvolvimento.
