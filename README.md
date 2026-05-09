@@ -1,6 +1,8 @@
 # Análise de Risco de Crédito
 
-Projeto de analytics engineering baseado no dataset [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data), com foco em ingestão de dados, modelagem
+Projeto de analytics engineering baseado no
+dataset [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data), com foco em
+ingestão de dados, modelagem
 analítica, criação de features, análise de negócio e estruturação de uma visão para dashboard.
 
 ## Contexto
@@ -26,7 +28,6 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 
 - Criação, treinamento e acompanhamento de modelos de *Machine Learning*
 
-
 ## Estrutura do repositório
 
 ```text
@@ -34,6 +35,9 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 ├── README.md
 ├── data/
 │   ├── raw/
+│   ├── bronze/
+│   ├── silver/
+│   ├── gold/
 │   └── warehouse/
 ├── docs/
 ├── scripts/
@@ -44,20 +48,57 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 
 ## Como começar
 
-- clone o repositorio
-- criar venv
-- instalar requirements
-- baixar os dados do kaggle e colocar em data/raw/
-- instruções para rodar localmente 
+### 1. Clone o repositório
 
-```bash 
+```bash
+git clone <url-do-repositorio>
+cd home-credit-analytics-case-study
+```
+
+### 2. Crie e ative um ambiente virtual
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Instale as dependências
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Adicione os dados brutos
+
+Baixe os arquivos do dataset [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data)
+e coloque os CSVs originais em `data/raw/`.
+
+### 5. Execute o pipeline local
+
+```bash
 python src/run_all.py
 ```
 
-- instruções para visualizar os dados localmente e fazer queries, se necessário
+Esse será o entrypoint principal do pipeline local, consolidando as etapas disponíveis do projeto.
+
+### 6. Etapas atuais do pipeline
+
+Atualmente, o fluxo disponível contempla:
+
+- auditoria inicial dos arquivos raw, com geração de `artifacts/ingestion/raw_ingestion_report.json`;
+- carga técnica no DuckDB local, com geração de `artifacts/ingestion/duckdb_load_report.json`;
+- criação ou atualização do banco local em `data/warehouse/credit_risk.duckdb`.
+
+### 7. Explore o warehouse localmente
+
+Para instalar o DuckDB CLI e acessar o DuckDB UI, consulte a documentação oficial:
+
+- [DuckDB Installation - CLI](https://duckdb.org/install/?platform=macos&environment=cli)
+
+**Observação:** Garanta que o banco não esteja aberto em outra sessão do DuckDB enquanto a ingestão estiver rodando.
 
 ```bash
-duckdb data/warehouse/credit_risk.duckdb -ui
+~/.duckdb/cli/1.4.4/duckdb data/warehouse/credit_risk.duckdb -ui
 ```
 
 ## Dashboard de métricas
@@ -69,15 +110,16 @@ duckdb data/warehouse/credit_risk.duckdb -ui
 A documentação detalhada está disponível em [`docs/`](./docs/), incluindo:
 
 - [Stack Técnica](./docs/stack.md)
-- [Fontes de dados](./docs/dados.md)
+- [Fontes de dados](docs/fontes_de_dados.md)
 - [Decisões de modelagem](./docs/decisoes_de_modelagem.md)
+- [Ingestão raw](./docs/ingestao_raw.md)
 - [Regras de negócio](./docs/regras_de_negocio.md)
-
 
 ## Entregáveis previstos
 
 - Pipeline de transformação em `Python` e `SQL`
 - Documentação da modelagem
-- Tabela analítica final em `.parquet`
+- Camadas `bronze`, `silver` e `gold` em `.parquet`
+- Tabela analítica final em `.parquet`, otimizada para consumo analítico e modelagem
 - Dashboard analítico, acessível online
 - Infraestrutura como código (IaC) para a proposta em cloud AWS
