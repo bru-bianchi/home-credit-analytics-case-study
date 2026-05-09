@@ -1,202 +1,111 @@
-# Ingestão de Dados Raw
+# Modelagem de Dados
 
-Este documento descreve de forma simples a primeira etapa do projeto: checagem, processamento inicial e ingestão dos
-arquivos `raw`.
+Este documento consolida as decisões de organização dos dados do projeto, separando a camada física de arquivos da
+camada lógica e analítica no DuckDB.
 
-## Objetivo
+## Organização dos arquivos
 
-Garantir que os arquivos de origem estejam disponíveis, possam ser lidos corretamente e sejam carregados para o ambiente
-analítico local sem aplicar regras de negócio ou transformações analíticas.
+Todos os dados do projeto ficam dentro de `data/`.
 
-## Escopo desta etapa
+- `data/raw/`: arquivos CSV originais do Kaggle, mantidos intocados para reprodutibilidade
+- `data/bronze/`: arquivos parquet com compressão snappy, derivados dos CSVs originais e com padronização técnica
+  inicial, como nomes de colunas
+- `data/silver/`: arquivos parquet com tratamento de nulos, inconsistências, joins, enriquecimentos e criação de
+  features intermediárias
+- `data/gold/`: arquivos parquet finais, modelados para consumo analítico, BI e modelagem estatística
+- `data/warehouse/`: banco local DuckDB com as tabelas de `bronze`, `silver` e `gold`, além de metadados e objetos
+  auxiliares organizados para consultas
 
-Nesta etapa, o processo faz apenas o necessário para preparar os dados para as próximas camadas do projeto.
+Resumo da arquitetura:
 
-Inclui:
+- Parquet em `bronze`, `silver` e `gold` = camada física de armazenamento.
+- DuckDB em `warehouse` = camada lógica e analítica para exploração, joins, queries e consumo por negócio.
 
-- verificar se os arquivos esperados existem em `data/raw/`;
-- validar se os arquivos podem ser lidos em Python;
-- identificar estrutura básica de cada arquivo;
-- registrar metadados da leitura;
-- carregar os arquivos válidos para a camada `raw` no DuckDB.
+Para detalhes sobre as tabelas de origem consideradas no projeto, consulte [fontes_de_dados.md](/Users/brunabianchi/Documents/home-credit-analytics-case-study/docs/fontes_de_dados.md).
 
-Não inclui:
+## Papel de cada camada
 
-- tratamento de dados ausentes;
-- correção de inconsistências de negócio;
-- deduplicação analítica;
-- criação de atributos derivados;
-- joins entre tabelas.
+### RAW
 
-## Arquivos esperados
+> Objetivo: preservar a origem como exatamente recebida.
 
-O processo atualmente espera os seguintes arquivos em `data/raw/`:
+- Contém os `CSV`s originais
+- Serve como ponto de reprocessamento do pipeline
+- Não recebe correções nem transformações
+- Esse é o ponto de entrada, onde qualquer pessoa que queira rodar o projeto precisa inputar os arquivos originais para o funcionamento do pipeline
 
-- `application_train.csv`
-- `application_test.csv`
-- `bureau.csv`
-- `bureau_balance.csv`
-- `previous_application.csv`
-- `POS_CASH_balance.csv`
-- `credit_card_balance.csv`
-- `installments_payments.csv`
+### BRONZE
 
-## Etapa 1: check dos arquivos
+> Objetivo: criar uma primeira versão técnica, consistente e eficiente para leitura.
 
-O primeiro passo é uma auditoria simples dos arquivos `raw`.
+- Conversão de CSV para `parquet com compressão snappy`
+- Padronização de nomes de colunas
+- Ajustes técnicos mínimos de schema e tipos
+- Sem aplicação de regras de negócio complexas
 
-Essa auditoria verifica:
+O formato `parquet` é preferido nessa camada porque:
 
-- se o arquivo existe;
-- se o arquivo está vazio;
-- se a leitura do CSV funciona;
-- quantidade de linhas;
-- quantidade de colunas;
-- nomes das colunas;
-- tipos inferidos de forma básica;
-- erros estruturais simples, como linhas com número inconsistente de colunas.
+- Preserva melhor o schema
+- Melhora performance de leitura analítica
+- Reduz espaço em disco
+- Reduz problemas típicos de CSV, como parsing, encoding e inferência inconsistente
 
-Além disso, a auditoria compara as colunas encontradas com uma referência versionada do projeto, derivada do arquivo:
+### SILVER
 
-- [docs/references/HomeCredit_columns_description.csv](/Users/brunabianchi/Documents/home-credit-analytics-case-study/docs/references/HomeCredit_columns_description.csv)
+> Objetivo: consolidar dados confiáveis e enriquecidos para análise.
 
-Essa checagem classifica o schema de cada arquivo como:
+- Tratamento de nulos, duplicidades e inconsistências
+- Joins entre tabelas
+- Aplicação de regras de negócio
+- Criação de features e atributos derivados
+- Harmonização de granularidade e relacionamento entre entidades
 
-- `ok`: estrutura esperada;
-- `warning`: colunas esperadas ausentes ou colunas extras, sem quebra crítica;
-- `error`: ausência de colunas obrigatórias, impedindo a carga para `raw`.
+### GOLD
 
-Saída gerada:
+> Objetivo: disponibilizar os conjuntos finais para consumo analítico.
 
-- `artifacts/ingestion/raw_ingestion_report.json`
+- Tabelas finais otimizadas para queries
+- Saídas voltadas a BI e dashboards
+- Tabelas preparadas para modelagem estatística e análises de negócio
+- Possibilidade de modelos dimensionais, fatos, dimensões e tabelas analíticas finais
 
-Script:
+## Modelagem do warehouse
 
-- [scripts/0_run_raw_ingestion_audit.py](/Users/brunabianchi/Documents/home-credit-analytics-case-study/scripts/0_run_raw_ingestion_audit.py)
+Dentro de `data/warehouse/credit_risk.duckdb`, o banco local deve centralizar:
 
-## Etapa 2: processamento inicial
+- Tabelas das camadas `bronze`, `silver` e `gold`
+- Metadados de ingestão e transformação para auditoria
+- Estruturas auxiliares para consultas e exploração local
 
-Depois da checagem, os arquivos que passaram na leitura são considerados aptos para ingestão.
+Organização lógica esperada no DuckDB:
 
-Neste momento, o processamento ainda é mínimo e técnico:
+- Schema `bronze`: tabelas técnicas padronizadas a partir dos arquivos em parquet da camada bronze
+- Schema `silver`: tabelas tratadas e enriquecidas
+- Schema `gold`: tabelas finais para consumo
+- Schema `metadados`: histórico de execuções, auditoria e referências de schema
 
-- leitura em Python;
-- validação básica da estrutura;
-- separação entre arquivos válidos e arquivos com erro.
+**Observação:** a ingestão inicial atualmente ainda valida e carrega os CSVs de `data/raw/` como etapa de bootstrap
+técnico do projeto. A evolução natural do pipeline é publicar e consumir as camadas analíticas a partir dos parquets de
+`bronze`, `silver` e `gold`.
 
-O objetivo aqui não é transformar os dados, mas apenas garantir que a camada `raw` seja carregada com segurança.
+## Fluxo de dados esperado
 
-## Etapa 3: ingestão no DuckDB
+O fluxo do projeto é:
 
-Os arquivos válidos são carregados via Python para o banco local DuckDB, na schema `raw`.
+1. Receber os arquivos originais em `data/raw/`
+2. Validar existência, leitura e estrutura básica dos arquivos
+3. Publicar os arquivos padronizados em `data/bronze/`
+4. Aplicar tratamentos e enriquecimentos em `data/silver/`
+5. Materializar tabelas finais em `data/gold/`
+6. Carregar ou sincronizar `bronze`, `silver` e `gold` no DuckDB em `data/warehouse/`
+7. Disponibilizar as tabelas para queries, dashboard e modelagem
 
-Exemplo de destino:
+## Detalhamento das ingestões
 
-- `raw.application_train`
-- `raw.bureau`
-- `raw.previous_application`
+A explicação operacional detalhada da ingestão inicial e transformação para outras camadas foram separadas em documentos
+próprios. 
 
-Essa carga é uma ingestão técnica. As transformações analíticas e a modelagem serão feitas depois, em SQL no DuckDB.
-
-Antes de carregar um arquivo, o processo consulta o histórico de ingestões para verificar se aquele mesmo `raw` já foi processado com sucesso anteriormente. Nesta versão, a checagem usa o caminho do arquivo e seu tamanho em bytes.
-
-Com isso, reexecuções do pipeline não recarregam automaticamente o mesmo arquivo, evitando duplicatas por rerun acidental.
-
-Saída gerada:
-
-- banco local em `data/warehouse/credit_risk.duckdb`
-- relatório em `artifacts/ingestion/duckdb_load_report.json`
-
-Script:
-
-- [scripts/1_load_raw_to_duckdb.py](/Users/brunabianchi/Documents/home-credit-analytics-case-study/scripts/1_load_raw_to_duckdb.py)
-
-## Registro de metadados
-
-Cada execução da ingestão é registrada na schema `metadados` do DuckDB.
-
-Tabelas atuais:
-
-- `metadados.ingestion_runs`: resumo de cada execução;
-- `metadados.ingestion_run_tables`: status de cada arquivo por execução.
-- `metadados.source_schema_reference`: referência de colunas esperadas por arquivo de origem.
-
-Esses registros permitem acompanhar:
-
-- quando a ingestão foi executada;
-- quais arquivos estavam disponíveis;
-- quais arquivos foram lidos com sucesso;
-- quais tabelas foram carregadas;
-- quais erros ocorreram.
-
-## Como visualizar o DuckDB localmente
-
-O banco local gerado pela ingestão pode ser explorado tanto via linha de comando quanto por interface gráfica local.
-
-Arquivo principal do banco:
-
-- `data/warehouse/credit_risk.duckdb`
-
-### DuckDB UI
-
-O `DuckDB UI` pode ser utilizado para navegar pelas schemas, visualizar tabelas, colunas, tipos e executar queries
-localmente em uma interface web.
-
-Referência oficial:
-
-- [The DuckDB Local UI](https://duckdb.org/2025/03/12/duckdb-ui)
-
-Após instalar o DuckDB CLI, execute:
-
-```bash
-duckdb data/warehouse/credit_risk.duckdb -ui
-```
-
-Esse comando abre a interface local no navegador e permite:
-
-- identificar schemas como `raw` e `metadados`;
-- visualizar tabelas e colunas;
-- inspecionar amostras dos dados;
-- executar queries SQL diretamente sobre o banco local.
-
-### DuckDB CLI
-
-Para instalar o DuckDB CLI, siga a referência oficial e adapte o método conforme o sistema operacional utilizado:
-
-- [DuckDB Installation - CLI](https://duckdb.org/install/?platform=macos&environment=cli)
-
-Uma opção simples de instalação via terminal é:
-
-```bash
-curl https://install.duckdb.org | DUCKDB_VERSION=1.4.4 sh
-```
-
-Exemplos de consultas úteis:
-
-```sql
-SELECT schema_name
-FROM information_schema.schemata
-ORDER BY schema_name;
-```
-
-```sql
-SELECT table_schema, table_name
-FROM information_schema.tables
-ORDER BY table_schema, table_name;
-```
-
-```sql
-SELECT *
-FROM metadados.ingestion_runs
-ORDER BY started_at_utc DESC;
-```
-
-## Resumo da abordagem
-
-De forma resumida, o fluxo atual é:
-
-1. verificar os arquivos em `data/raw/`;
-2. validar leitura e estrutura básica em Python;
-3. registrar metadados da leitura;
-4. carregar arquivos válidos para `raw` no DuckDB;
-5. usar o DuckDB depois para modelagem e transformação.
+- [ingestao_raw.md](ingestao_raw.md)
+- [ingestao_bronze.md]()
+- [ingestao_silver.md]()
+- [ingestao_gold.md]()

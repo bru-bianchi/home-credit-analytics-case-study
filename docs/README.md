@@ -16,5 +16,7 @@ Conteúdo previsto:
 Os primeiros registros desta documentação irão cobrir:
 
 - definição da ingestão em Python;
+- detalhamento da ingestão inicial dos arquivos raw;
 - uso do DuckDB como engine analítica local/de desenvolvimento;
-- criação da schema `metadados` para auditoria das execuções de ingestão.
+- organização das camadas físicas `raw`, `bronze`, `silver` e `gold`;
+- criação das tabelas e metadados no warehouse DuckDB para auditoria, queries e consumo analítico.
