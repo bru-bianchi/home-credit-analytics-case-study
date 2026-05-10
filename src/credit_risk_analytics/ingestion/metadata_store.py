@@ -144,7 +144,7 @@ def save_metadata(connection, run_id, started_at_utc, raw_dir, database_path, re
                     skipped_cached_validation,
                     column_names_json,
                     errors_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     run_id,
