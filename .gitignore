@@ -4,8 +4,8 @@ __pycache__/
 *.pyc
 .venv/
 
-data/raw/*.csv
-!data/raw/.gitkeep
+data/*/*.csv
+data/*/*.parquet
 
 artifacts/
 *.duckdb
