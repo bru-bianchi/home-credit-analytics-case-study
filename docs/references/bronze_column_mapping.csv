@@ -1,0 +1,4 @@
+file_name,source_column,reference_column,bronze_column,bronze_type,notes
+bureau.csv,SK_ID_BUREAU,SK_BUREAU_ID,sk_bureau_id,,raw column differs from Home Credit reference naming
+bureau_balance.csv,SK_ID_BUREAU,SK_BUREAU_ID,sk_bureau_id,,raw column differs from Home Credit reference naming
+credit_card_balance.csv,AMT_RECIVABLE,AMT_RECEIVABLE,amt_receivable,,manual typo fix for bronze semantic naming
