@@ -43,7 +43,7 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 ├── scripts/
 ├── src/
 │   ├── utils/
-│   └── credit_risk_analysis/
+│   └── credit_risk_pipeline/
 │       ├── raw/
 │       ├── bronze/
 │       ├── silver/
@@ -130,7 +130,7 @@ Scripts atuais para execução por camada:
 
 A documentação detalhada está disponível em [`docs/`](./docs/), incluindo:
 
-- [Stack Técnica](./docs/stack.md)
+- [Arquitetura Técnica](./docs/arquitetura_tecnica.md)
 - [Fontes de dados](docs/fontes_de_dados.md)
 - [Decisões de modelagem](./docs/decisoes_de_modelagem.md)
 - [Ingestão raw](./docs/ingestao_raw.md)
