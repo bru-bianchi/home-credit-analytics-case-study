@@ -42,6 +42,12 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 ├── docs/
 ├── scripts/
 ├── src/
+│   ├── utils/
+│   └── credit_risk_analysis/
+│       ├── raw/
+│       ├── bronze/
+│       ├── silver/
+│       └── gold/
 └── cloud_infra/
     └── terraform/
 ```
@@ -70,36 +76,51 @@ pip install -r requirements.txt
 
 ### 4. Adicione os dados brutos
 
-Baixe os arquivos do dataset [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data)
+Baixe os arquivos do
+dataset [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data)
 e coloque os CSVs originais em `data/raw/`.
 
 ### 5. Execute o pipeline local
 
-```bash
-python src/run_all.py
-```
-
-Esse será o entrypoint principal do pipeline local, consolidando as etapas disponíveis do projeto.
+Atualmente, o pipeline é executado por camada via scripts em `scripts/`.
 
 ### 6. Etapas atuais do pipeline
 
-Atualmente, o fluxo disponível contempla:
+O fluxo atual está organizado em macroetapas:
 
-- auditoria inicial dos arquivos raw, com geração de `artifacts/ingestion/raw_ingestion_report.json`;
-- carga técnica no DuckDB local, com geração de `artifacts/ingestion/duckdb_load_report.json`;
-- criação ou atualização do banco local em `data/warehouse/credit_risk.duckdb`.
+- `raw`: auditoria estrutural dos arquivos de entrada, geração de relatórios e persistência de metadados da camada.
+  Veja [Ingestão raw](./docs/ingestao_raw.md).
+- `bronze`: padronização técnica dos dados brutos, aplicação de mapping versionado, publicação em parquet e carga no
+  schema `bronze` do warehouse local.
+  Veja [Ingestão bronze](./docs/ingestao_bronze.md).
+- `silver`: transformações analíticas em SQL, criação de tabelas base e agregadas, exportação em parquet e carga no
+  schema `silver` do warehouse local.
+  Veja [Ingestão silver](./docs/ingestao_silver.md).
+- `warehouse e metadados`: centralização das camadas processadas e do histórico de execução no DuckDB local.
+  Veja [Decisões de modelagem](./docs/decisoes_de_modelagem.md).
+- `cache e reprocessamento incremental`: reaproveitamento por fingerprints e metadados para evitar processamento
+  desnecessário entre execuções.
+  Veja [Ingestão raw](./docs/ingestao_raw.md), [Ingestão bronze](./docs/ingestao_bronze.md) e
+  [Ingestão silver](./docs/ingestao_silver.md).
+
+Scripts atuais para execução por camada:
+
+- `python scripts/0_run_raw_ingestion_audit.py`
+- `python scripts/1_run_bronze_transformation.py`
+- `python scripts/2_run_silver_transformation.py`
+
+[Espaço reservado para o diagrama do fluxo de execução]
 
 ### 7. Explore o warehouse localmente
-
-Para instalar o DuckDB CLI e acessar o DuckDB UI, consulte a documentação oficial:
-
-- [DuckDB Installation - CLI](https://duckdb.org/install/?platform=macos&environment=cli)
-
-**Observação:** Garanta que o banco não esteja aberto em outra sessão do DuckDB enquanto a ingestão estiver rodando.
 
 ```bash
 ~/.duckdb/cli/1.4.4/duckdb data/warehouse/credit_risk.duckdb -ui
 ```
+
+> Para instalar o DuckDB CLI e acessar o DuckDB UI, consulte a documentação oficial: [DuckDB Installation - CLI](https://duckdb.org/install/?platform=macos&environment=cli)
+
+**Observação:** Garanta que o banco não esteja aberto em outra sessão do DuckDB enquanto o pipeline estiver rodando.
+
 
 ## Dashboard de métricas
 
@@ -113,6 +134,8 @@ A documentação detalhada está disponível em [`docs/`](./docs/), incluindo:
 - [Fontes de dados](docs/fontes_de_dados.md)
 - [Decisões de modelagem](./docs/decisoes_de_modelagem.md)
 - [Ingestão raw](./docs/ingestao_raw.md)
+- [Ingestão bronze](./docs/ingestao_bronze.md)
+- [Ingestão silver](./docs/ingestao_silver.md)
 - [Regras de negócio](./docs/regras_de_negocio.md)
 
 ## Entregáveis previstos
@@ -123,3 +146,30 @@ A documentação detalhada está disponível em [`docs/`](./docs/), incluindo:
 - Tabela analítica final em `.parquet`, otimizada para consumo analítico e modelagem
 - Dashboard analítico, acessível online
 - Infraestrutura como código (IaC) para a proposta em cloud AWS
+
+## Considerações para Produção e Escalabilidade
+
+Este projeto foi intencionalmente desenvolvido como um case local e batch-oriented de analytics engineering, utilizando
+DuckDB e datasets estáticos. Algumas decisões arquiteturais voltadas para produção foram simplificadas para evitar
+complexidade desnecessária no escopo atual.
+
+Em um ambiente de produção com ingestão contínua e maiores volumes de dados, as seguintes evoluções poderiam ser
+consideradas:
+
+* Particionamento das camadas raw e bronze por source e timestamp de ingestão, permitindo processamento incremental,
+  partition pruning, paralelismo e execução distribuída.
+* Data contracts entre sistemas de origem e pipelines de ingestão para validação de schemas, colunas obrigatórias, tipos
+  e regras de negócio esperadas antes do processamento.
+* Dead Letter Queue (DLQ) e mecanismos de fail-safe para isolamento de arquivos corrompidos, inconsistentes ou inválidos
+  sem interromper o restante do pipeline.
+* Estratégias de multi-region fail-safe e disaster recovery para aumentar disponibilidade e resiliência em ambientes
+  cloud.
+* Alertas automáticos e notificações de falha para inconsistências, schema drift, falhas de ingestão ou problemas de
+  qualidade de dados em qualquer etapa do pipeline, especialmente na camada raw.
+* Orquestração e lineage mais avançados, incluindo grafos de dependência, execução incremental baseada em DAG e
+  observabilidade histórica das execuções.
+* Motores distribuídos de processamento, como Spark ou plataformas lakehouse cloud-native, para cenários com ingestão
+  contínua ou datasets de grande escala.
+
+A implementação atual já possui mecanismos de cache baseados em metadados e fingerprints para evitar reprocessamentos
+desnecessários das camadas bronze, silver e gold.
