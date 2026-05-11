@@ -13,11 +13,11 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from credit_risk_analytics.ingestion.raw_files_validator import (
+from credit_risk_analysis.raw.raw_files_validator import (
     build_ingestion_report,
     write_report,
 )
-from credit_risk_analytics.ingestion.metadata_store import (
+from credit_risk_analysis.raw.metadata_store import (
     load_cached_validation_results,
     persist_raw_validation_report,
 )
