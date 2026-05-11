@@ -1,0 +1,6 @@
+table_name,column_name,null_handling_rule,replacement_value,condition_sql,is_active,justification
+applications,code_gender,fill_constant,Nao informado,,true,"valor semantico para genero ausente nas analises"
+applications,own_car_age,leave_null,,,true,"ausencia pode significar que o cliente nao possui carro; nao imputar automaticamente"
+applications,amt_annuity,leave_null,,,true,"manter nulo ate existir regra de negocio aprovada"
+applications,days_last_phone_change,leave_null,,,true,"manter nulo na silver ate validacao de interpretacao do campo"
+applications,name_type_suite,fill_constant,Nao informado,,false,"exemplo de futura imputacao categorica quando a regra for aprovada"
