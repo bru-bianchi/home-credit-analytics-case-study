@@ -1,0 +1,8 @@
+file_name,source_column,sentinel_sql,replacement_sql,is_active,notes
+application_train.csv,DAYS_EMPLOYED,365243,NULL,true,"Home Credit sentinel for missing employment duration"
+application_test.csv,DAYS_EMPLOYED,365243,NULL,true,"Home Credit sentinel for missing employment duration"
+previous_application.csv,DAYS_FIRST_DRAWING,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
+previous_application.csv,DAYS_FIRST_DUE,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
+previous_application.csv,DAYS_LAST_DUE_1ST_VERSION,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
+previous_application.csv,DAYS_LAST_DUE,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
+previous_application.csv,DAYS_TERMINATION,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
