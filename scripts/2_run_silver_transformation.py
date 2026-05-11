@@ -13,7 +13,7 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from credit_risk_analysis.silver import build_silver_layer
+from credit_risk_pipeline.silver import build_silver_layer
 
 
 def parse_args() -> argparse.Namespace:
