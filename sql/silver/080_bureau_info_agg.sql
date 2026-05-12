@@ -1,4 +1,4 @@
---CREATE OR REPLACE TABLE silver.bureau_info_agg AS
+CREATE OR REPLACE TABLE silver.bureau_info_agg AS
 -- Uma linha por sk_bureau_id
 
 WITH bureau_balance_agg AS (
@@ -7,6 +7,7 @@ WITH bureau_balance_agg AS (
 
       -- Flags
       MAX(flag_has_dpd) AS flag_has_dpd,
+      MAX(flag_severe_dpd) AS flag_severe_dpd,
       MAX(flag_recent_dpd) AS flag_has_recent_dpd,
 
       -- Cálculos
@@ -24,8 +25,9 @@ WITH bureau_balance_agg AS (
   GROUP BY sk_bureau_id
 )
 SELECT bureau.*,
-  case when b_agg.sk_bureau_id is null then true else false end as flag_balance_missing,
-  b_agg.flag_has_dpd,
+  (b_agg.sk_bureau_id IS NULL) AS flag_balance_missing,
+  (b_agg.flag_has_dpd OR bureau.credit_day_overdue > 0) AS flag_has_dpd_agg,
+  (b_agg.flag_severe_dpd OR bureau.credit_day_overdue > 60) AS flag_severe_dpd_agg,
   b_agg.flag_has_recent_dpd,
 
   b_agg.total_months,

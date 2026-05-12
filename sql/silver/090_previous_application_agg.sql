@@ -6,18 +6,24 @@ WITH installments_agg AS (
 
         -- Flags
         MAX(flag_late_payment) AS flag_installment_late_payment,
+        MAX(flag_early_payment) AS flag_installment_early_payment,
         MAX(flag_partial_payment) AS flag_installment_partial_payment,
 
         -- Cálculos
         COUNT(*) AS total_installments,
 
+        SUM(days_late) AS installment_total_avg_days_late,
         AVG(days_late) AS installment_avg_days_late,
         MAX(days_late) AS installment_max_days_late,
+
+        SUM(amt_payment) AS total_amt_payment,
+        SUM(amt_instalment) AS total_amt_installment,
+        SUM(amt_payment)/SUM(amt_instalment) AS wavg_payment_ratio,
+        MAX(payment_ratio) AS max_payment_ratio,
 
         AVG(CASE WHEN flag_late_payment THEN 1 ELSE 0 END) AS installment_late_payment_ratio,
         AVG(CASE WHEN flag_partial_payment THEN 1 ELSE 0 END) AS installment_partial_payment_ratio,
 
-        AVG(payment_ratio) AS installment_avg_payment_ratio,
         SUM(unpaid_amount) AS installment_total_unpaid_amount
 
     FROM silver.installments_payments
@@ -36,10 +42,13 @@ credit_card_agg AS (
         SUM(sk_dpd) AS card_total_dpd,
         AVG(sk_dpd) AS card_avg_dpd,
 
-        AVG(credit_utilization_ratio) AS avg_credit_utilization,
+       SUM(amt_balance) AS total_amt_balance,
+       SUM(amt_credit_limit_actual) AS total_credit_limit,
+
+        SUM(amt_balance)/SUM(amt_credit_limit_actual) AS wavg_credit_utilization,
         MAX(credit_utilization_ratio) AS max_credit_utilization,
 
-        -- Em quantos meses houveram esses eventos
+        -- Em quantos meses houve esses eventos
         COUNT(CASE WHEN flag_high_utilization THEN 1 ELSE 0 END) AS card_high_utilization_count,
         COUNT(CASE WHEN flag_over_utilization THEN 1 ELSE 0 END) AS card_over_utilization_count,
         AVG(CASE WHEN flag_high_utilization THEN 1 ELSE 0 END) AS card_high_utilization_ratio,
@@ -81,11 +90,15 @@ SELECT pa.*,
     ia.flag_installment_late_payment,
     ia.flag_installment_partial_payment,
     ia.total_installments,
+    ia.installment_total_avg_days_late,
     ia.installment_avg_days_late,
     ia.installment_max_days_late,
+    ia.total_amt_payment,
+    ia.total_amt_installment,
+    ia.wavg_payment_ratio,
+    ia.max_payment_ratio,
     ia.installment_late_payment_ratio,
     ia.installment_partial_payment_ratio,
-    ia.installment_avg_payment_ratio,
     ia.installment_total_unpaid_amount,
 
     -- credit card
@@ -94,7 +107,9 @@ SELECT pa.*,
     cca.total_credit_card_records,
     cca.card_total_dpd,
     cca.card_avg_dpd,
-    cca.avg_credit_utilization,
+    cca.total_amt_balance,
+    cca.total_credit_limit,
+    cca.wavg_credit_utilization,
     cca.max_credit_utilization,
     cca.card_high_utilization_count,
     cca.card_over_utilization_count,

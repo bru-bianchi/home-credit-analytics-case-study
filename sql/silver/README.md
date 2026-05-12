@@ -16,14 +16,6 @@ Convenção sugerida:
 - tabelas agregadas devem deixar clara a granularidade no nome, como `installments_per_application_agg`.
 
 Regras de nulos:
-- as regras de imputação devem ser definidas em `docs/references/silver_null_handling_mapping.csv`;
-- os SQLs da silver devem aplicar essas regras explicitamente com `COALESCE` ou `CASE`.
-
-Formato esperado do mapping de nulos:
-- `table_name`: tabela de entrada da regra
-- `column_name`: coluna alvo
-- `null_handling_rule`: por exemplo `leave_null`, `fill_constant`, `fill_expression`, `conditional_fill`
-- `replacement_value`: valor de substituição quando a regra for `fill_constant`
-- `condition_sql`: predicado opcional para regras condicionais
-- `is_active`: se a regra deve ser aplicada no fluxo
-- `justification`: racional da regra
+- por enquanto, o tratamento de nulos deve ficar explícito no próprio SQL com `COALESCE`, `CASE` e `NULLIF` quando houver justificativa analítica clara;
+- quando não houver decisão de negócio validada, prefira manter `NULL` em vez de imputar artificialmente;
+- evite depender de arquivos auxiliares externos para controlar imputações nesta fase inicial do projeto.

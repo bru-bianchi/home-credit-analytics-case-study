@@ -11,7 +11,7 @@ SELECT
     (amt_annuity IS NULL) AS flag_missing_annuity,
 
   -- Situaçõ
-  (COALESCE(amt_credit_sum_overdue, 0) > 0) AS flag_has_overdue,
+  (COALESCE(amt_credit_sum_overdue, 0) > 0) AS flag_has_dpd,
   (ABS(days_credit) <= 30) AS flag_recent_credit,
   (cnt_credit_prolong > 0) AS flag_credit_was_prolonged,
 
