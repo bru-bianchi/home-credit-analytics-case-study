@@ -15,6 +15,7 @@ SELECT
     -----------
 
     -- Razão do empréstimo
+    (amt_goods_price IS NOT NULL) as amt_goods_price_known,
     (name_goods_category IS NULL) as flag_goods_category_known,
 
     -- Situação empréstimo
