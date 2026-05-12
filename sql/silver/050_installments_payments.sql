@@ -22,21 +22,21 @@ SELECT
         WHEN days_entry_payment < days_instalment
         THEN TRUE
         ELSE FALSE
-    END AS early_payment_flag,
+    END AS flag_early_payment,
 
     -- Pagamento atrasado
     CASE
         WHEN days_entry_payment > days_instalment
         THEN TRUE
         ELSE FALSE
-    END AS late_payment_flag,
+    END AS flag_late_payment,
 
     -- Pagamento parcial
     CASE
         WHEN amt_payment < amt_instalment
         THEN TRUE
         ELSE FALSE
-    END AS partial_payment_flag,
+    END AS flag_partial_payment,
 
     -- Ratio pagamento/parcela
     CASE

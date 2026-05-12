@@ -170,6 +170,8 @@ consideradas:
   observabilidade histórica das execuções.
 * Motores distribuídos de processamento, como Spark ou plataformas lakehouse cloud-native, para cenários com ingestão
   contínua ou datasets de grande escala.
+* Arquivos externos versionados para regras analíticas sensíveis, como políticas de imputação de nulos na `silver`,
+  quando o volume de exceções e ajustes de negócio justificar separar esse controle do SQL.
 
 A implementação atual já possui mecanismos de cache baseados em metadados e fingerprints para evitar reprocessamentos
 desnecessários das camadas bronze, silver e gold.
