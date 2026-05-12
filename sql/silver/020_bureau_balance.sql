@@ -1,8 +1,5 @@
 CREATE OR REPLACE TABLE silver.bureau_balance AS
-SELECT
-    sk_bureau_id,
-    months_balance,
-    status,
+SELECT *,
 
     CASE
         WHEN status = 'X' THEN NULL
@@ -10,40 +7,22 @@ SELECT
         ELSE CAST(status AS INTEGER)
     END AS status_numeric,
 
-    CASE
-        WHEN status IN ('1', '2', '3', '4', '5') THEN TRUE
-        ELSE FALSE
-    END AS flag_has_dpd,
+    -----------
+    -- FLAGS --
+    -----------
 
-    CASE
-        WHEN status IN ('3', '4', '5') THEN TRUE
-        ELSE FALSE
-    END AS flag_severe_dpd,
+    -- DPD (Days Past Due)
+    (status IN ('1', '2', '3', '4', '5')) AS flag_has_dpd, -- qualquer período
+    (status IN ('3', '4', '5')) AS flag_severe_dpd, -- 60+ dias
+    (ABS(months_balance) <= 1 AND status IN ('1', '2', '3', '4', '5')) AS flag_recent_dpd,
 
-    CASE
-        WHEN status = 'C' THEN TRUE
-        ELSE FALSE
-    END AS flag_closed_credit,
+    (status = 'C') AS flag_closed_credit,
+    (status = 'X') aS flag_missing_status,
 
-    CASE
-        WHEN status = 'X' THEN TRUE
-        ELSE FALSE
-    END AS flag_missing_status,
+   --------------
+   -- CÁLCULOS --
+   --------------
+   ABS(months_balance) AS months_balance_abs
 
-    ABS(months_balance) AS months_balance_abs,
-
-    CASE
-        WHEN ABS(months_balance) <= 3
-             AND status IN ('1', '2', '3', '4', '5')
-        THEN TRUE
-        ELSE FALSE
-    END AS flag_recent_dpd,
-
-    CASE
-        WHEN status IN ('X', 'C', '0') THEN 'no_dpd'
-        WHEN status IN ('1', '2') THEN 'low_dpd'
-        WHEN status = '3' THEN 'medium_dpd'
-        WHEN status IN ('4', '5') THEN 'severe_dpd'
-        ELSE 'unknown'
-    END AS dpd_status
-FROM bronze.bureau_balance;
+FROM bronze.bureau_balance
+;

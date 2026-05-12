@@ -2,44 +2,48 @@ CREATE OR REPLACE TABLE silver.bureau AS
 SELECT
     *,
 
-    COALESCE(amt_credit_sum_debt, 0) AS amt_credit_sum_debt_clean,
+  -----------
+  -- FLAGS --
+  -----------
 
-    CASE
-        WHEN amt_credit_sum_debt IS NULL THEN TRUE
-        ELSE FALSE
-    END AS flag_debt_missing,
+  -- Missing
+  (amt_credit_sum_debt IS NULL) AS flag_debt_missing,
+    (amt_annuity IS NULL) AS flag_missing_annuity,
 
+  -- Situaçõ
+  (COALESCE(amt_credit_sum_overdue, 0) > 0) AS flag_has_overdue,
+  (ABS(days_credit) <= 30) AS flag_recent_credit,
+  (cnt_credit_prolong > 0) AS flag_credit_was_prolonged,
+
+  (credit_active = 'Active') AS flag_active_credit,
+  (credit_active = 'Bad debt') AS flag_bad_debt,
+
+  -- Tipos
+  (credit_type = 'Consumer credit') AS flag_consumer_credit,
+  (credit_type = 'Credit card') AS flag_credit_card,
+  (credit_type = 'Car loan') AS flag_car_loan,
+  (credit_type = 'Mortgage') AS flag_mortgage,
+
+
+  --------------
+  -- CÁLCULOS --
+  --------------
+
+    -- Ratios
     CASE
-        WHEN amt_credit_sum > 0
-        THEN COALESCE(amt_credit_sum_debt, 0) / amt_credit_sum
+        WHEN amt_credit_sum > 0 and amt_credit_sum_debt IS NOT NULL
+        THEN amt_credit_sum_debt / amt_credit_sum
         ELSE NULL
     END AS debt_credit_ratio,
 
     CASE
-        WHEN amt_credit_sum > 0
-        THEN COALESCE(amt_credit_sum_overdue, 0) / amt_credit_sum
+        WHEN amt_credit_sum > 0 and amt_credit_sum_overdue IS NOT NULL
+        THEN amt_credit_sum_overdue / amt_credit_sum
         ELSE NULL
     END AS overdue_credit_ratio,
 
-    CASE
-        WHEN COALESCE(amt_credit_sum_overdue, 0) > 0 THEN TRUE
-        ELSE FALSE
-    END AS flag_has_overdue,
-
-    CASE
-        WHEN credit_active = 'Active' THEN TRUE
-        ELSE FALSE
-    END AS is_active_credit,
-
-    CASE
-        WHEN credit_active = 'Bad debt' THEN TRUE
-        ELSE FALSE
-    END AS is_bad_debt,
-
+    -- Informações do crédito legíveis
     ABS(days_credit) AS credit_age_days,
 
-    CASE
-        WHEN ABS(days_credit) <= 30 THEN TRUE
-        ELSE FALSE
-    END AS recent_credit_flag
-FROM bronze.bureau;
+FROM bronze.bureau
+;
