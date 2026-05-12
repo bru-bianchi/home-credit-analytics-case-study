@@ -1,45 +1,22 @@
-CREATE OR REPLACE TABLE silver.posh_cash_balance AS
-SELECT
-    sk_id_curr,
-    sk_id_prev,
+CREATE OR REPLACE TABLE silver.pos_cash_balance AS
+SELECT *,
 
-    months_balance,
+    -----------
+    -- FLAGS --
+    -----------
 
-    cnt_instalment,
-    cnt_instalment_future,
+    -- DPD (Days Past Due)
+    (sk_dpd > 0) AS flag_has_dpd,
+    (sk_dpd > 60) AS flag_severe_dpd,
 
-    sk_dpd,
-    sk_dpd_def,
+    -- Status
+    (name_contract_status = 'Active') AS flag_active_contract,
+    (cnt_instalment_future <= 3) AS flag_near_completion,
 
-    name_contract_status,
 
-    -- Possui atraso
-    CASE
-        WHEN sk_dpd > 0
-        THEN TRUE
-        ELSE FALSE
-    END AS has_dpd_flag,
-
-    -- Atraso severo
-    CASE
-        WHEN sk_dpd >= 30
-        THEN TRUE
-        ELSE FALSE
-    END AS severe_dpd_flag,
-
-    -- Contrato ativo
-    CASE
-        WHEN name_contract_status = 'Active'
-        THEN TRUE
-        ELSE FALSE
-    END AS active_contract_flag,
-
-    -- Poucas parcelas restantes
-    CASE
-        WHEN cnt_instalment_future <= 3
-        THEN TRUE
-        ELSE FALSE
-    END AS near_completion_flag,
+    --------------
+    -- CÁLCULOS --
+    --------------
 
     -- Percentual restante do contrato
     CASE
@@ -48,4 +25,5 @@ SELECT
         ELSE NULL
     END AS remaining_installment_ratio
 
-FROM bronze.pos_cash_balance;
+FROM bronze.pos_cash_balance
+;

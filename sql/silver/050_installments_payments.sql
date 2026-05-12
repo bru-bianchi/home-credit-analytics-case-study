@@ -1,54 +1,32 @@
-CREATE OR REPLACE TABLE silver.installements_payments AS
-SELECT
-    sk_id_curr,
-    sk_id_prev,
-    num_instalment_version,
-    num_instalment_number,
+CREATE OR REPLACE TABLE silver.installments_payments AS
+SELECT *,
 
-    days_instalment,
-    days_entry_payment,
+    -----------
+    -- FLAGS --
+    -----------
 
-    amt_instalment,
-    amt_payment,
+    (days_entry_payment < days_instalment) AS flag_early_payment,
+    (days_entry_payment > days_instalment) AS flag_late_payment,
+    (amt_payment < amt_instalment) AS flag_partial_payment,
+    (num_instalment_number = 0) as flag_credit_card,
 
-    -- Dias de atraso
-    GREATEST(
-        days_entry_payment - days_instalment,
-        0
-    ) AS days_late,
 
-    -- Pagamento antecipado
-    CASE
-        WHEN days_entry_payment < days_instalment
-        THEN TRUE
-        ELSE FALSE
-    END AS flag_early_payment,
+    --------------
+    -- CÁLCULOS --
+    --------------
 
-    -- Pagamento atrasado
-    CASE
-        WHEN days_entry_payment > days_instalment
-        THEN TRUE
-        ELSE FALSE
-    END AS flag_late_payment,
+    GREATEST(days_entry_payment - days_instalment,0) AS days_late,
 
-    -- Pagamento parcial
-    CASE
-        WHEN amt_payment < amt_instalment
-        THEN TRUE
-        ELSE FALSE
-    END AS flag_partial_payment,
-
-    -- Ratio pagamento/parcela
     CASE
         WHEN amt_instalment > 0
         THEN amt_payment / amt_instalment
         ELSE NULL
     END AS payment_ratio,
 
-    -- Valor faltante
     GREATEST(
         amt_instalment - amt_payment,
         0
     ) AS unpaid_amount
 
-FROM bronze.installments_payments;
+FROM bronze.installments_payments
+;
