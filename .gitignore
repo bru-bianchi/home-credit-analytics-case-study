@@ -11,3 +11,5 @@ data/*/*.parquet
 artifacts/
 *.duckdb
 *.duckdb.wal
+
+aws/.terraform*
