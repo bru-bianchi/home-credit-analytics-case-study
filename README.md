@@ -57,16 +57,16 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 
 ## 1. Modelagem de Dados
 
-A modelagem de dados do projeto é dividida em três camadas principais: 
-- CSV em `raw`, preservando os arquivos originais para auditoria, reprodutibilidade e reprocessamento
-- Parquet em `bronze`, `silver` e `gold`, compondo a camada física do warehouse com melhor performance e estabilidade de schema
-- Banco DuckDB em `warehouse`, atuando como camada lógica e analítica para exploração, joins, queries, metadados e consumo por negócio/dashboard
-
+- **Objetivo:** criar uma camada de dados modelada
+- A modelagem de dados do projeto é dividida em três camadas principais:
+  - CSV em `raw`, preservando os arquivos originais para auditoria, reprodutibilidade e reprocessamento 
+  - Parquet em `bronze`, `silver` e `gold`, compondo a camada física do warehouse com melhor performance e estabilidade de schema 
+  - Banco DuckDB em `warehouse`, atuando como camada lógica e analítica para exploração, joins, queries, metadados e consumo por negócio/dashboard
 - Documentação detalhada: [Decisões de Modelagem](/docs/decisoes_de_modelagem.md).
 
 ## 2. Enriquecimento dos Dados (SILVER)
 
-- **Objetivo:** consolidar dados confiáveis e enriquecidos para consumo analítico detalhado e histórico
+- **Objetivo:** consolidar dados e enriquecê-los para consumo analítico detalhado e histórico, de forma confiável
 - Foram criadas features de perfil cadastral, capacidade financeira, comportamento de crédito, atrasos, utilização de
   limite e completude de informações, além de agregações históricas por cliente e contratos anteriores para consolidar
   sinais de risco vindos de bureau, parcelas, cartão de crédito e POS Cash
