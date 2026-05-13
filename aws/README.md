@@ -1,6 +1,7 @@
 # Proposta AWS
 
-No arquivo `aws/main.tf` encontra-se a estrutura sugerida para uma pequena escala em produção desse projeto*. Os recursos
+No arquivo `aws/main.tf` encontra-se a estrutura sugerida para uma pequena escala em produção desse projeto*. Os
+recursos
 propostos são:
 
 - `Amazon S3`: para storage dos arquivos raw, camada física do warehouse (parquet) e artefatos de execução do pipeline
@@ -14,5 +15,6 @@ propostos são:
 - `Amazon QuickSight`: para criação de dashboards, conectado ao Athena, consultado a camada Gold
 
 \* Para um processo de produção maior, outros recursos como `RedShift` (mais escalabilidade e estabilidade, view
-materializadas, performance) e `Iceberg S3 Tables` (agilidade em inserção, reprodutibilidade, time travel).
+materializadas, performance) e `Iceberg S3 Tables` (agilidade em inserção, reprodutibilidade, time travel) poderão ser
+usados para melhor eficiência.
 
