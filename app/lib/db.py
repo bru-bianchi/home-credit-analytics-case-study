@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -30,13 +31,17 @@ def _quote_path(path: Path) -> str:
 def _get_secret(name: str) -> str | None:
     """Return a Streamlit secret or environment variable without requiring secrets locally."""
 
-    try:
-        value = st.secrets.get(name)
-    except Exception:
-        value = None
+    for key in (name, name.lower()):
+        try:
+            value = st.secrets.get(key)
+        except Exception:
+            value = None
 
-    value = value or os.getenv(name)
-    return str(value).strip() if value else None
+        value = value or os.getenv(key)
+        if value:
+            return str(value).strip()
+
+    return None
 
 
 def _motherduck_database() -> str:
@@ -47,7 +52,15 @@ def _motherduck_token() -> str | None:
     return _get_secret("MOTHERDUCK_TOKEN")
 
 
-def _connect_motherduck():
+def _motherduck_token_fingerprint() -> str:
+    token = _motherduck_token()
+    if not token:
+        return ""
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _connect_motherduck(database_name: str):
     """Open a MotherDuck connection when a token is available in the environment."""
 
     token = _motherduck_token()
@@ -55,7 +68,8 @@ def _connect_motherduck():
         return None
 
     os.environ["MOTHERDUCK_TOKEN"] = token
-    return duckdb.connect(f"md:{_motherduck_database()}")
+    os.environ["motherduck_token"] = token
+    return duckdb.connect(f"md:{database_name}")
 
 
 def _connect_gold_parquet_views():
@@ -78,7 +92,7 @@ def _connect_gold_parquet_views():
 
 
 @st.cache_resource(show_spinner=False)
-def get_connection(warehouse_path: str):
+def _get_connection_cached(warehouse_path: str, motherduck_database: str, token_fingerprint: str):
     """Open a DuckDB connection for dashboard queries.
 
     The dashboard reads from MotherDuck when MOTHERDUCK_TOKEN is configured.
@@ -86,14 +100,23 @@ def get_connection(warehouse_path: str):
     Parquet outputs when the local file is unavailable or locked.
     """
 
-    motherduck_connection = _connect_motherduck()
-    if motherduck_connection is not None:
-        return motherduck_connection
+    if token_fingerprint:
+        return _connect_motherduck(motherduck_database)
 
     try:
         return duckdb.connect(str(Path(warehouse_path).expanduser()), read_only=True)
     except duckdb.IOException:
         return _connect_gold_parquet_views()
+
+
+def get_connection(warehouse_path: str):
+    """Resolve the active data source and return a cached connection for it."""
+
+    return _get_connection_cached(
+        str(Path(warehouse_path).expanduser()),
+        _motherduck_database(),
+        _motherduck_token_fingerprint(),
+    )
 
 
 def describe_data_source(warehouse_path: str) -> str:
