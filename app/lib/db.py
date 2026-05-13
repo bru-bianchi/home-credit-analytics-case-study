@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import duckdb
@@ -11,6 +12,7 @@ import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WAREHOUSE_PATH = PROJECT_ROOT / "data" / "warehouse" / "credit_risk.duckdb"
+DEFAULT_MOTHERDUCK_DATABASE = "credit_risk"
 GOLD_PARQUET_DIR = PROJECT_ROOT / "data" / "gold"
 GOLD_TABLES = (
     "fact_credit_risk",
@@ -23,6 +25,37 @@ GOLD_TABLES = (
 
 def _quote_path(path: Path) -> str:
     return str(path).replace("'", "''")
+
+
+def _get_secret(name: str) -> str | None:
+    """Return a Streamlit secret or environment variable without requiring secrets locally."""
+
+    try:
+        value = st.secrets.get(name)
+    except Exception:
+        value = None
+
+    value = value or os.getenv(name)
+    return str(value).strip() if value else None
+
+
+def _motherduck_database() -> str:
+    return _get_secret("MOTHERDUCK_DATABASE") or DEFAULT_MOTHERDUCK_DATABASE
+
+
+def _motherduck_token() -> str | None:
+    return _get_secret("MOTHERDUCK_TOKEN")
+
+
+def _connect_motherduck():
+    """Open a MotherDuck connection when a token is available in the environment."""
+
+    token = _motherduck_token()
+    if not token:
+        return None
+
+    os.environ["MOTHERDUCK_TOKEN"] = token
+    return duckdb.connect(f"md:{_motherduck_database()}")
 
 
 def _connect_gold_parquet_views():
@@ -48,14 +81,31 @@ def _connect_gold_parquet_views():
 def get_connection(warehouse_path: str):
     """Open a DuckDB connection for dashboard queries.
 
-    The primary source is the local warehouse. If it is locked by another DuckDB
-    process, the app falls back to the Gold Parquet outputs.
+    The dashboard reads from MotherDuck when MOTHERDUCK_TOKEN is configured.
+    Without that token, it reads the local warehouse and falls back to Gold
+    Parquet outputs when the local file is unavailable or locked.
     """
+
+    motherduck_connection = _connect_motherduck()
+    if motherduck_connection is not None:
+        return motherduck_connection
 
     try:
         return duckdb.connect(str(Path(warehouse_path).expanduser()), read_only=True)
     except duckdb.IOException:
         return _connect_gold_parquet_views()
+
+
+def describe_data_source(warehouse_path: str) -> str:
+    """Return a human-readable data source description for the dashboard."""
+
+    if _motherduck_token():
+        return f"Fonte primaria: MotherDuck (`md:{_motherduck_database()}`)."
+
+    return (
+        "Fonte primaria local: warehouse DuckDB em "
+        f"`{Path(warehouse_path).expanduser()}`. Fallback: Parquets em `data/gold`."
+    )
 
 
 def query_df(sql: str, warehouse_path: str, params: list | None = None) -> pd.DataFrame:

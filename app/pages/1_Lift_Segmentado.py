@@ -5,7 +5,7 @@ import streamlit as st
 from annotated_text import annotated_text
 import matplotlib as plt
 
-from lib.db import DEFAULT_WAREHOUSE_PATH, list_gold_tables, query_df, table_exists
+from lib.db import DEFAULT_WAREHOUSE_PATH, describe_data_source, list_gold_tables, query_df, table_exists
 
 st.set_page_config(
     page_title="Dashboard Inadimplência",
@@ -37,15 +37,16 @@ def format_percent(value: float | int | None) -> str:
 
 st.title("Lift de Risco Segmentado")
 
-st.sidebar.caption("Fonte primaria: warehouse DuckDB. Fallback: Parquets em `data/gold`.")
-
 warehouse_path = DEFAULT_WAREHOUSE_PATH
+st.sidebar.caption(describe_data_source(warehouse_path))
 
 try:
     gold_tables = list_gold_tables(warehouse_path)
 except Exception as exc:
     st.error(
-        "Nao foi possível conectar às tabelas Gold. Verifique seu 'DEFAULT_WAREHOUSE_PATH' localizado em 'app/lib/db.py'")
+        "Nao foi possível conectar às tabelas Gold. Verifique as variáveis MOTHERDUCK_TOKEN/MOTHERDUCK_DATABASE "
+        "ou o warehouse local em app/lib/db.py."
+    )
     st.exception(exc)
     st.stop()
 
