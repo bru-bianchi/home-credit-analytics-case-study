@@ -21,7 +21,7 @@ para auditoria, reprodutibilidade e reprocessamento; Parquet em `bronze`, `silve
 warehouse com melhor performance e estabilidade de schema; e banco DuckDB em `warehouse`, atuando como camada
 lógica e analítica para exploração, joins, queries, metadados e consumo por negócio/dashboard.
 
-Informações mais detalhadas em [Decisões de Modelage](/docs/decisoes_de_modelagem.md).
+Informações mais detalhadas em [Decisões de Modelagem](/docs/decisoes_de_modelagem.md).
 
 ## 2. Enriquecimento dos Dados (SILVER)
 
@@ -72,7 +72,7 @@ Para execução desse projeto localmente, siga os passos abaixo.
 1. Clone o repositório
 
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/bru-bianchi/home-credit-analytics-case-study.git
 cd home-credit-analytics-case-study
 ```
 
