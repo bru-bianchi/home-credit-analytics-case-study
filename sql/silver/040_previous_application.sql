@@ -1,4 +1,4 @@
--- CREATE OR REPLACE TABLE silver.previous_application AS
+CREATE OR REPLACE TABLE silver.previous_application AS
 SELECT
     *,
 

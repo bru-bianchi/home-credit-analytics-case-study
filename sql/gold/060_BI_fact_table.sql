@@ -19,8 +19,8 @@ applications_info AS (
 
             -- Métricas do contrato
             a.annuity_credit_ratio,
+            a.loan_income_ratio,
             a.annuity_income_ratio,
-            a.debt_income_ratio,
             a.debt_good_ratio,
 
             -- Métricas do cliente
@@ -161,7 +161,7 @@ SELECT
     applications_info.amt_income_total,
     applications_info.annuity_credit_ratio,
     applications_info.annuity_income_ratio,
-    applications_info.debt_income_ratio,
+    applications_info.loan_income_ratio,
     applications_info.debt_good_ratio,
     applications_info.income_per_person,
     applications_info.cnt_children,

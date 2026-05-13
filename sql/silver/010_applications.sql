@@ -74,8 +74,8 @@ SELECT
         ELSE NULL
     END AS annuity_credit_ratio,
 
-    -- amt_income_total e amt_goods_price tem quase nenhum ou nenhum nulo, mas NULLIF apenas para garantir o cálculo
-    (amt_credit / NULLIF(amt_income_total, 0)) AS debt_income_ratio,
+    (amt_credit / NULLIF(amt_income_total, 0)) AS loan_income_ratio,
+    (amt_annuity / NULLIF(amt_income_total,0)) AS annuity_income_ratio,
     (amt_credit / NULLIF(amt_goods_price, 0)) AS debt_good_ratio,
 
     (amt_income_total / NULLIF(cnt_fam_members, 0)) AS income_per_person,
@@ -191,7 +191,261 @@ SELECT
       + CASE WHEN flag_phone THEN 1 ELSE 0 END
       + CASE WHEN flag_email THEN 1 ELSE 0 END
     )/6.0
-    ) AS contact_info_filled_rate
+    ) AS contact_info_filled_rate,
+
+    -- Perfil cadastral basico
+    (
+      CASE WHEN code_gender IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN cnt_children IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_income_total IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_income_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_education_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_family_status IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_housing_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN days_birth IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN days_employed IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN occupation_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN cnt_fam_members IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN organization_type IS NOT NULL THEN 1 ELSE 0 END
+    ) AS core_profile_info_filled_count,
+    (
+    (
+      CASE WHEN code_gender IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN cnt_children IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_income_total IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_income_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_education_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_family_status IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN name_housing_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN days_birth IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN days_employed IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN occupation_type IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN cnt_fam_members IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN organization_type IS NOT NULL THEN 1 ELSE 0 END
+    )/12.0
+    ) AS core_profile_info_filled_rate,
+
+    -- Scores externos
+    (3 - (
+        CASE WHEN ext_source_1 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_2 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_3 IS NOT NULL THEN 1 ELSE 0 END
+    )) AS ext_source_missing_count,
+    (
+    (
+        CASE WHEN ext_source_1 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_2 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_3 IS NOT NULL THEN 1 ELSE 0 END
+    )/3.0
+    ) AS ext_source_fill_rate,
+
+    -- Consultas ao bureau
+    (
+      CASE WHEN amt_req_credit_bureau_hour IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_day IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_week IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_mon IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_qrt IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_year IS NOT NULL THEN 1 ELSE 0 END
+    ) AS credit_bureau_request_info_filled_count,
+    (
+    (
+      CASE WHEN amt_req_credit_bureau_hour IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_day IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_week IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_mon IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_qrt IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN amt_req_credit_bureau_year IS NOT NULL THEN 1 ELSE 0 END
+    )/6.0
+    ) AS credit_bureau_request_info_filled_rate,
+
+    -- Circulo social
+    (
+      CASE WHEN obs_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN def_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN obs_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN def_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+    ) AS social_circle_info_filled_count,
+    (
+    (
+      CASE WHEN obs_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN def_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN obs_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      + CASE WHEN def_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+    )/4.0
+    ) AS social_circle_info_filled_rate,
+
+    -- Documentos declarados
+    (
+      CASE WHEN flag_document_2 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_3 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_4 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_5 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_6 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_7 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_8 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_9 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_10 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_11 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_12 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_13 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_14 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_15 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_16 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_17 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_18 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_19 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_20 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_21 THEN 1 ELSE 0 END
+    ) AS document_provided_count,
+    (
+    (
+      CASE WHEN flag_document_2 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_3 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_4 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_5 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_6 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_7 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_8 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_9 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_10 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_11 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_12 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_13 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_14 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_15 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_16 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_17 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_18 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_19 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_20 THEN 1 ELSE 0 END
+      + CASE WHEN flag_document_21 THEN 1 ELSE 0 END
+    )/20.0
+    ) AS document_provided_rate,
+
+    -- Score geral de completude cadastral, excluindo documentos por serem flags de entrega.
+    (
+      (
+        CASE WHEN code_gender IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN cnt_children IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_income_total IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_income_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_education_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_family_status IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_housing_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN days_birth IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN days_employed IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN occupation_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN cnt_fam_members IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN organization_type IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN apartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN basementarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN years_beginexpluatation_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN years_build_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN commonarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN elevators_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN entrances_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN floorsmax_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN floorsmin_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN landarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN livingapartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN livingarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN nonlivingapartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN nonlivingarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN totalarea_mode IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN flag_mobil THEN 1 ELSE 0 END
+        + CASE WHEN flag_emp_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_work_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_cont_mobile THEN 1 ELSE 0 END
+        + CASE WHEN flag_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_email THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN ext_source_1 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_2 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_3 IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN amt_req_credit_bureau_hour IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_day IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_week IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_mon IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_qrt IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_year IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN obs_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN def_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN obs_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN def_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      )
+    ) AS cadastral_completeness_count,
+    (
+    (
+      (
+        CASE WHEN code_gender IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN cnt_children IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_income_total IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_income_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_education_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_family_status IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN name_housing_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN days_birth IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN days_employed IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN occupation_type IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN cnt_fam_members IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN organization_type IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN apartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN basementarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN years_beginexpluatation_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN years_build_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN commonarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN elevators_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN entrances_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN floorsmax_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN floorsmin_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN landarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN livingapartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN livingarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN nonlivingapartments_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN nonlivingarea_avg IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN totalarea_mode IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN flag_mobil THEN 1 ELSE 0 END
+        + CASE WHEN flag_emp_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_work_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_cont_mobile THEN 1 ELSE 0 END
+        + CASE WHEN flag_phone THEN 1 ELSE 0 END
+        + CASE WHEN flag_email THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN ext_source_1 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_2 IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN ext_source_3 IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN amt_req_credit_bureau_hour IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_day IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_week IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_mon IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_qrt IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN amt_req_credit_bureau_year IS NOT NULL THEN 1 ELSE 0 END
+      )
+      + (
+        CASE WHEN obs_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN def_30_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN obs_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN def_60_cnt_social_circle IS NOT NULL THEN 1 ELSE 0 END
+      )
+    )/46.0
+    ) AS cadastral_completeness_rate
 
 
 

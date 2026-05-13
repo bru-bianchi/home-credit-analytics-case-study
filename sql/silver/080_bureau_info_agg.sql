@@ -1,5 +1,6 @@
-CREATE OR REPLACE TABLE silver.bureau_info_agg AS
--- Uma linha por sk_bureau_id
+CREATE OR REPLACE TABLE silver.agg_bureau_external_credit_behavior AS
+
+-- Uma linha por sk_bureau_id, agrega informação sobre crédito externo
 
 WITH bureau_balance_agg AS (
   SELECT
@@ -13,6 +14,12 @@ WITH bureau_balance_agg AS (
       -- Cálculos
       COUNT(*) AS total_months,
       SUM(flag_closed_credit) AS closed_credit_months,
+
+      SUM(CASE WHEN status_numeric = 1 THEN 1 ELSE 0 END) AS dpd_1_30_months,
+      SUM(CASE WHEN status_numeric = 2 THEN 1 ELSE 0 END) AS dpd_31_60_months,
+      SUM(CASE WHEN status_numeric = 3 THEN 1 ELSE 0 END) AS dpd_61_90_months,
+      SUM(CASE WHEN status_numeric >= 4 THEN 1 ELSE 0 END) AS dpd_90_plus_months,
+
       SUM(flag_has_dpd) AS total_dpd_months,
       SUM(flag_has_dpd)/COUNT(*) AS dpd_ratio,
 
@@ -32,6 +39,10 @@ SELECT bureau.*,
 
   b_agg.total_months,
   b_agg.closed_credit_months,
+  b_agg.dpd_1_30_months,
+  b_agg.dpd_31_60_months,
+  b_agg.dpd_61_90_months,
+  b_agg.dpd_90_plus_months,
   b_agg.total_dpd_months,
   b_agg.dpd_ratio,
   b_agg.severe_dpd_months,

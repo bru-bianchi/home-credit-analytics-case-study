@@ -1,6 +1,7 @@
-CREATE OR REPLACE TABLE silver.previous_application_agg AS
+CREATE OR REPLACE TABLE silver.agg_internal_historical_behavior AS
 
--- Uma linha por sk_id_prev
+-- Uma linha por sk_id_prev - agrega informações sobre o histórico de crédito interno, incluindo cartão, parcelas e POS
+
 WITH installments_agg AS (
     SELECT sk_id_prev,
 

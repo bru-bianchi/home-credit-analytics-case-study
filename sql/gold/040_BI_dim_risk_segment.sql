@@ -54,7 +54,6 @@ SELECT
     bureau.max_external_dpd_status,
 
     -- Faixas de Métricas
-    dti_rule.band_label as dti_band,
     score_rule.band_label as mean_score_band,
     annuity_income_rule.band_label as annuity_income_band,
 
@@ -77,18 +76,6 @@ ON a.sk_id_curr = bureau.sk_id_curr
 
 LEFT JOIN internal_credit as internal
 ON a.sk_id_curr = internal.sk_id_curr
-
-LEFT JOIN gold.ref_band_rules dti_rule
-ON dti_rule.band_group = 'dti_band'
-AND (
-    (a.debt_income_ratio IS NULL AND dti_rule.is_null_band)
-    OR (
-        a.debt_income_ratio IS NOT NULL
-        AND NOT dti_rule.is_null_band
-        AND (dti_rule.lower_bound IS NULL OR a.debt_income_ratio >= dti_rule.lower_bound)
-        AND (dti_rule.upper_bound IS NULL OR a.debt_income_ratio < dti_rule.upper_bound)
-    )
-)
 
 LEFT JOIN gold.ref_band_rules score_rule
         ON score_rule.band_group = 'score_band'
