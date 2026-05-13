@@ -6,3 +6,8 @@ previous_application.csv,DAYS_FIRST_DUE,365243,NULL,true,"Home Credit sentinel f
 previous_application.csv,DAYS_LAST_DUE_1ST_VERSION,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
 previous_application.csv,DAYS_LAST_DUE,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
 previous_application.csv,DAYS_TERMINATION,365243,NULL,true,"Home Credit sentinel for missing previous application timeline"
+previous_application.csv,NAME_CLIENT_TYPE,'XNA','Unknown',true,
+previous_application.csv,NAME_CASH_LOAN_PURPOSE,XNA,Unknown,true,
+previous_application.csv,NAME_CASH_LOAN_PURPOSE,XPA,Not Applicable,true,
+previous_application.csv,NAME_PAYMENT_TYPE,XNA,Unknown,true,
+previous_application.csv,NAME_GOODS_CATEGORY,XNA,Unknown,true,

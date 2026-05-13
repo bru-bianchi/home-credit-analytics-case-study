@@ -1,115 +1,85 @@
-# Ingestão de Dados Raw
+# Ingestão Raw
 
-Este documento descreve a etapa inicial de checagem, processamento técnico e carga local dos arquivos originais em
-`data/raw/`.
+A camada `raw` é o ponto de entrada do pipeline. Ela preserva os CSVs originais do Kaggle e executa apenas auditoria
+estrutural, sem alterar ou carregar os dados como tabelas analíticas.
+
+## Resumo Executivo
+
+| Decisão | Implementação | Benefício |
+|---|---|---|
+| Preservar a origem | CSVs mantidos em `data/raw/` | Auditoria, reprodutibilidade e reprocessamento |
+| Não transformar dados na Raw | Sem casts, imputações ou regras de negócio | Mantém a fonte original intacta |
+| Auditar estrutura mínima | Validação de existência, leitura, linhas, colunas e erros simples | Detecta problemas antes da Bronze |
+| Persistir metadados | `metadados.raw_validation_events` no DuckDB | Histórico de execução e rastreabilidade |
+| Evitar releitura desnecessária | Cache por fingerprint e versão da validação | Reduz tempo em reexecuções |
 
 ## Objetivo
 
-Garantir que os arquivos de origem estejam disponíveis, possam ser lidos corretamente e sejam preparados para o início
-do pipeline analítico, sem aplicar ainda regras de negócio ou transformações analíticas das demais camadas.
+Garantir que os arquivos de origem estejam disponíveis, legíveis e preservados como fonte auditável.
 
-## Escopo atual
+Na prática, a Raw responde a três necessidades:
 
-Inclui:
+- confirmar que todos os arquivos esperados existem;
+- registrar a estrutura observada de cada CSV;
+- manter um histórico de validação sem modificar o dado original.
 
-- verificar se os arquivos esperados existem em `data/raw/`;
-- validar se os CSVs podem ser lidos em Python;
-- identificar estrutura básica de cada arquivo;
-- registrar metadados da leitura;
-- carregar os arquivos válidos para uma área técnica no DuckDB.
+## Validação Executada
 
-Não inclui:
+A lista de arquivos esperados está em [Fontes de dados](./fontes_de_dados.md). Para cada arquivo, a auditoria estrutural
+verifica:
 
-- tratamento analítico de dados ausentes;
-- correções de negócio;
-- criação de features finais;
-- joins analíticos entre tabelas;
-- publicação das camadas `silver` e `gold`.
-
-## Arquivos esperados
-
-O processo atualmente espera os seguintes arquivos em `data/raw/`:
-
-- `application_train.csv`
-- `application_test.csv`
-- `bureau.csv`
-- `bureau_balance.csv`
-- `previous_application.csv`
-- `POS_CASH_balance.csv`
-- `credit_card_balance.csv`
-- `installments_payments.csv`
-
-## Etapa 1: auditoria estrutural
-
-O primeiro passo é uma auditoria simples dos arquivos raw.
-
-Essa auditoria verifica:
-
-- se o arquivo existe;
-- se o arquivo está vazio;
-- se a leitura do CSV funciona;
+- existência do arquivo;
+- arquivo vazio;
+- sucesso de leitura do CSV;
 - quantidade de linhas;
 - quantidade de colunas;
 - nomes das colunas;
-- tipos inferidos de forma básica;
 - erros estruturais simples, como linhas com número inconsistente de colunas.
 
-Além disso, a auditoria compara as colunas encontradas com a referência versionada do projeto:
+Cada arquivo é classificado com status como `valid`, `invalid` ou `missing`.
 
-- [HomeCredit_columns_description.csv](/Users/brunabianchi/Documents/home-credit-analytics-case-study/docs/references/HomeCredit_columns_description.csv)
+A Raw não valida o schema de referência do dataset. Essa comparação fica na Bronze, onde o arquivo
+`HomeCredit_columns_description.csv` é usado para orientar mapeamento e validação técnica.
 
-Essa checagem classifica o schema de cada arquivo como:
+## Execução E Observabilidade
 
-- `ok`: estrutura esperada;
-- `warning`: colunas esperadas ausentes ou colunas extras, sem quebra crítica;
-- `error`: ausência de colunas obrigatórias, impedindo a continuidade da carga técnica.
+Script de execução:
 
-Saída gerada:
+- [scripts/0_run_raw_ingestion_audit.py](../scripts/0_run_raw_ingestion_audit.py)
 
-- `artifacts/ingestion/raw_ingestion_report.json`
+Módulos principais:
 
-Script:
+- `src/credit_risk_pipeline/raw/config.py`;
+- `src/credit_risk_pipeline/raw/raw_files_validator.py`;
+- `src/credit_risk_pipeline/raw/create_metadata.py`.
 
-- [0_run_raw_ingestion_audit.py](/Users/brunabianchi/Documents/home-credit-analytics-case-study/scripts/0_run_raw_ingestion_audit.py)
+Saídas:
 
-## Etapa 2: carga técnica local no DuckDB
+- `artifacts/ingestion/raw_ingestion_report.json`;
+- eventos em `metadados.raw_validation_events`.
 
-Depois da checagem, os arquivos legíveis são carregados no banco local para suporte à exploração inicial e à evolução do
-pipeline.
+## Cache E Reprocessamento
 
-Hoje essa carga ainda acontece em uma schema técnica `raw`, com o objetivo de:
+A validação de um arquivo é reaproveitada quando o arquivo permanece inalterado.
 
-- registrar os dados lidos localmente;
-- permitir inspeção inicial dos datasets;
-- manter rastreabilidade entre o CSV de origem e o conteúdo carregado;
-- evitar recarga acidental do mesmo arquivo em reexecuções.
+Critérios de reaproveitamento:
 
-Antes de carregar um arquivo, o processo consulta o histórico de ingestões e verifica se aquele mesmo arquivo já foi
-processado com sucesso anteriormente. Nesta versão, a checagem usa o caminho do arquivo e seu tamanho em bytes.
+- `file_fingerprint`, calculado a partir de caminho, tamanho em bytes e timestamp de modificação;
+- `process_version`, que representa a versão atual da lógica de validação raw.
 
-Saídas geradas:
+Quando ambos coincidem com uma validação anterior bem-sucedida, a leitura do CSV não é repetida e o arquivo é marcado
+como reaproveitado.
 
-- banco local em `data/warehouse/credit_risk.duckdb`;
-- relatório em `artifacts/ingestion/duckdb_load_report.json`.
+## Limites Da Camada
 
-Script:
+A Raw não faz:
 
-- [1_load_raw_to_duckdb.py](/Users/brunabianchi/Documents/home-credit-analytics-case-study/scripts/1_load_raw_to_duckdb.py)
+- carga analítica no warehouse;
+- alteração dos arquivos originais;
+- tratamento de nulos;
+- casts;
+- joins;
+- criação de features;
+- publicação de `bronze`, `silver` ou `gold`.
 
-## Metadados e auditoria
-
-Cada execução da ingestão é registrada na schema `metadados` do DuckDB.
-
-Tabelas atuais:
-
-- `metadados.ingestion_runs`: resumo de cada execução;
-- `metadados.ingestion_run_tables`: status de cada arquivo por execução;
-- `metadados.source_schema_reference`: referência de colunas esperadas por arquivo de origem.
-
-Esses registros permitem acompanhar:
-
-- quando a ingestão foi executada;
-- quais arquivos estavam disponíveis;
-- quais arquivos foram lidos com sucesso;
-- quais cargas técnicas foram realizadas;
-- quais erros ocorreram.
+Esse limite mantém a origem preservada e desloca decisões técnicas ou analíticas para as camadas seguintes.

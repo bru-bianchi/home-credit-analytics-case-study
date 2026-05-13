@@ -1,116 +1,48 @@
-# Modelagem de Dados
+# Decisões de Modelagem
 
-Este documento consolida as decisões de organização dos dados do projeto, separando a camada física de arquivos da
-camada lógica e analítica no DuckDB.
+Este projeto separa claramente a camada física dos dados, a camada lógica de consulta e as camadas de negócio. A decisão
+principal foi manter os arquivos originais auditáveis, materializar as camadas analíticas em Parquet e usar o DuckDB como
+warehouse local para exploração, joins, queries e consumo pelo dashboard.
 
-## Organização dos arquivos
+## Resumo Executivo
 
-Todos os dados do projeto ficam dentro de `data/`.
+| Decisão | Implementação | Benefício                                                                                   |
+|---|---|---------------------------------------------------------------------------------------------|
+| Preservar a origem | CSVs originais em `data/raw/` | Auditoria, reprodutibilidade e reprocessamento                                              |
+| Materializar camadas analíticas | Parquet em `data/bronze/`, `data/silver/` e `data/gold/` | Melhor performance, compressão e estabilidade de schema                                     |
+| Separar camada física e lógica | DuckDB em `data/warehouse/credit_risk.duckdb` | Queries, joins, metadados e consumo analítico sem depender diretamente dos CSVs ou Parquets |
+| Organizar consumo por maturidade | Camadas `raw`, `bronze`, `silver` e `gold` | Clareza entre dado original, dado técnico, dado enriquecido e dado de negócio               |
+| Publicar a Gold para consumo | Star schema + feature store de ML | Dashboard, análises executivas e modelagem preditiva com menor complexidade para o consumidor |
 
-- `data/raw/`: arquivos CSV originais do Kaggle, mantidos intocados para reprodutibilidade
-- `data/bronze/`: arquivos parquet com compressão snappy, derivados dos CSVs originais e com padronização técnica
-  inicial, como nomes de colunas
-- `data/silver/`: arquivos parquet com tratamento de nulos, inconsistências, enriquecimentos e tabelas detalhadas ou
-  agregadas para análise histórica
-- `data/gold/`: arquivos parquet finais, modelados para consumo analítico pronto, data marts, agregações flexíveis e
-  tabela final de modelagem para ML
-- `data/warehouse/`: banco local DuckDB com as tabelas de `bronze`, `silver` e `gold`, além de metadados e objetos
-  auxiliares organizados para consultas
+## Desenho Das Camadas
 
-Resumo da arquitetura:
+| Camada | Papel | Saída principal | Consumidor esperado |
+|---|---|---|---|
+| `raw` | Preservar os arquivos como recebidos | CSV original | Pipeline e auditoria |
+| `bronze` | Padronizar tecnicamente os dados | Parquet técnico e schema `bronze` | Engenharia e próximas etapas do pipeline |
+| `silver` | Aplicar regras, features e agregações históricas | Parquet enriquecido e schema `silver` | Análises detalhadas e construção da Gold |
+| `gold` | Servir dados prontos para consumo | Star schema, fato, dimensões, feature store e Parquet final | Dashboard, negócio e modelagem preditiva |
+| `metadados` | Registrar execuções e rastreabilidade | Tabelas de eventos no DuckDB | Auditoria técnica e diagnóstico |
 
-- Parquet em `bronze`, `silver` e `gold` = camada física de armazenamento.
-- DuckDB em `warehouse` = camada lógica e analítica para exploração, joins, queries e consumo por negócio.
+## Racional Técnico
 
-Para detalhes sobre as tabelas de origem consideradas no projeto, consulte [fontes_de_dados.md](/Users/brunabianchi/Documents/home-credit-analytics-case-study/docs/fontes_de_dados.md).
+Manter CSV em `raw` evita perda de rastreabilidade: qualquer decisão de tratamento pode ser reprocessada a partir da
+fonte original, sem alterar o dado recebido.
 
-## Papel de cada camada
+Persistir `bronze`, `silver` e `gold` em Parquet reduz custo de leitura, melhora compressão, preserva tipos de forma mais
+estável e evita problemas recorrentes de parsing e inferência de CSV.
 
-### RAW
+Usar DuckDB como warehouse local centraliza a camada lógica do projeto: as tabelas ficam organizadas em schemas, os SQLs
+podem fazer joins e agregações de forma simples, e os metadados de execução ficam próximos das tabelas processadas.
 
-> Objetivo: preservar a origem como exatamente recebida.
+A Gold foi separada em dois formatos de consumo porque eles resolvem problemas diferentes: o star schema facilita leitura
+executiva, filtros e métricas de dashboard, enquanto `gold.credit_risk_feature_store` entrega uma matriz tabular curada
+para prever inadimplência, sem depender de joins adicionais na etapa de modelagem.
 
-- Contém os `CSV`s originais
-- Serve como ponto de reprocessamento do pipeline
-- Não recebe correções nem transformações
-- É a camada de entrada para execução do pipeline a partir dos arquivos originais
+## Links De Detalhamento
 
-### BRONZE
-
-> Objetivo: criar uma primeira versão técnica, consistente e eficiente para leitura.
-
-- Conversão de CSV para `parquet com compressão snappy`
-- Padronização de nomes de colunas
-- Ajustes técnicos mínimos de schema e tipos
-- Ponto natural para futuras validações contra schema de referência
-- Sem aplicação de regras de negócio complexas
-
-O formato `parquet` é preferido nessa camada porque:
-
-- Preserva melhor o schema
-- Melhora performance de leitura analítica
-- Reduz espaço em disco
-- Reduz problemas típicos de CSV, como parsing, encoding e inferência inconsistente
-
-### SILVER
-
-> Objetivo: consolidar dados confiáveis e enriquecidos para consumo analítico detalhado e histórico.
-
-- Tratamento de nulos, duplicidades e inconsistências
-- Joins entre tabelas
-- Aplicação de regras de negócio
-- Criação de features e atributos derivados
-- Harmonização de granularidade e relacionamento entre entidades
-- Tabelas base e tabelas agregadas `_agg` para exploração analítica em diferentes granularidades
-- Camada esperada de consumo para análises mais detalhadas, históricas e investigativas
-
-### GOLD
-
-> Objetivo: disponibilizar conjuntos finais prontos para consumo, distribuição e modelagem.
-
-- Tabelas finais otimizadas para queries recorrentes
-- Saídas voltadas a BI, dashboards e consumo de negócio
-- Data marts e agregações mais prontas para uso
-- Tabelas analíticas flexíveis para consumo final
-- Tabela final de modelagem para ML
-- Possibilidade de modelos dimensionais, fatos, dimensões e tabelas analíticas finais
-
-## Modelagem do warehouse
-
-Dentro de `data/warehouse/credit_risk.duckdb`, o banco local deve centralizar:
-
-- Tabelas das camadas `bronze`, `silver` e `gold`
-- Metadados de ingestão e transformação para auditoria
-- Estruturas auxiliares para consultas e exploração local
-
-Organização lógica esperada no DuckDB:
-
-- Schema `bronze`: tabelas técnicas padronizadas a partir dos arquivos em parquet da camada bronze
-- Schema `silver`: tabelas tratadas, enriquecidas e agregadas para análise detalhada e histórica
-- Schema `gold`: tabelas finais para consumo pronto, marts e base final de ML
-- Schema `metadados`: histórico de execuções, auditoria e referências de schema
-
-**Observação:** a ingestão inicial atualmente ainda valida e carrega os CSVs de `data/raw/` como etapa de bootstrap
-técnico do projeto. A evolução natural do pipeline é publicar e consumir as camadas analíticas a partir dos parquets de
-`bronze`, `silver` e `gold`.
-
-## Fluxo de dados esperado
-
-O fluxo do projeto é:
-
-1. Receber os arquivos originais em `data/raw/`
-2. Validar existência, leitura e estrutura básica dos arquivos
-3. Publicar os arquivos padronizados em `data/bronze/`
-4. Aplicar tratamentos e enriquecimentos em `data/silver/`
-5. Materializar tabelas finais, marts e saídas de modelagem em `data/gold/`
-6. Carregar ou sincronizar `bronze`, `silver` e `gold` no DuckDB em `data/warehouse/`
-7. Disponibilizar as tabelas para queries, dashboard, consumo analítico e modelagem
-
-## Detalhamento das ingestões
-
-A explicação operacional detalhada da ingestão inicial e transformação para outras camadas foram separadas em documentos
-próprios. 
-
+- [Fontes de dados](./fontes_de_dados.md)
 - [Ingestão raw](./ingestao_raw.md)
 - [Ingestão bronze](./ingestao_bronze.md)
 - [Ingestão silver](./ingestao_silver.md)
+- [Ingestão gold](./ingestao_gold.md)

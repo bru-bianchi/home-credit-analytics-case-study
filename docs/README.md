@@ -1,22 +1,22 @@
 # Documentação
 
-Esta pasta concentra a documentação técnica e funcional do projeto.
+Esta pasta concentra a documentação técnica e funcional do projeto de análise de risco de crédito.
 
-Conteúdo previsto:
+## Como Ler
 
-- decisões de arquitetura;
-- etapas de ingestão;
-- modelagem e transformações;
-- critérios de qualidade de dados;
-- publicação e consumo analítico;
-- proposta de infraestrutura em AWS.
+- [Arquitetura técnica](./arquitetura_tecnica.md): como o pipeline roda localmente.
+- [Decisões de modelagem](./decisoes_de_modelagem.md): por que os dados foram organizados em camadas.
+- [Fontes de dados](./fontes_de_dados.md): quais arquivos alimentam o projeto e qual papel têm na análise.
+- [Ingestão raw](./ingestao_raw.md), [bronze](./ingestao_bronze.md), [silver](./ingestao_silver.md) e
+  [gold](./ingestao_gold.md): o que cada etapa transforma, publica e entrega para a etapa seguinte.
+- [Regras de negócio](./regras_de_negocio.md): principais sinais de risco criados e por que importam para o negócio.
+- [Considerações para produção](./consideracoes.md): evoluções para escalar a solução fora do contexto local do case.
 
-## Status inicial
+## Referências
 
-Os primeiros registros desta documentação irão cobrir:
+A pasta [references](./references/) guarda arquivos auxiliares versionados, incluindo:
 
-- definição da ingestão em Python;
-- detalhamento da ingestão inicial dos arquivos raw;
-- uso do DuckDB como engine analítica local/de desenvolvimento;
-- organização das camadas físicas `raw`, `bronze`, `silver` e `gold`;
-- criação das tabelas e metadados no warehouse DuckDB para auditoria, queries e consumo analítico.
+- dicionário de colunas original do Home Credit;
+- mapeamentos de colunas e schema da camada `bronze`;
+- regras explícitas de valores sentinela;
+- regras de faixas usadas na camada `gold`.

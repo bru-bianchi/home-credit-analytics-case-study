@@ -1,0 +1,144 @@
+<mxfile host="app.diagrams.net" agent="Codex">
+  <diagram id="pipeline-flow" name="Fluxo do Pipeline">
+    <mxGraphModel dx="1437" dy="991" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1550" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;fontColor=#1f2937;align=center;" value="Fluxo do Pipeline Analítico" vertex="1">
+          <mxGeometry height="44" width="720" x="415" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=none;fillColor=none;fontSize=13;fontColor=#4b5563;align=center;" value="Jobs escrevem simultaneamente na camada física de arquivos e no warehouse lógico DuckDB." vertex="1">
+          <mxGeometry height="32" width="820" x="365" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="physical_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#9ca3af;fontColor=#111827;fontSize=15;fontStyle=1;verticalAlign=top;spacingTop=14;" value="Camada física - Storage em arquivos" vertex="1">
+          <mxGeometry height="600" width="360" x="50" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="physical_note" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=none;fillColor=none;fontSize=12;fontColor=#4b5563;align=center;" value="Persistência física: CSV, Parquet e artefatos em disco." vertex="1">
+          <mxGeometry height="35" width="300" x="80" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="raw_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;data/raw/&lt;/b&gt;&lt;br&gt;CSVs originais&lt;br&gt;preservados para auditoria" vertex="1">
+          <mxGeometry height="72" width="290" x="85" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;data/bronze/&lt;/b&gt;&lt;br&gt;Parquet técnico&lt;br&gt;nomes, tipos e sentinelas" vertex="1">
+          <mxGeometry height="72" width="290" x="85" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="silver_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;data/silver/&lt;/b&gt;&lt;br&gt;Parquet enriquecido&lt;br&gt;features e agregações" vertex="1">
+          <mxGeometry height="72" width="290" x="85" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="gold_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;data/gold/&lt;/b&gt;&lt;br&gt;Parquet final&lt;br&gt;BI e feature store" vertex="1">
+          <mxGeometry height="72" width="290" x="85" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="artifacts_storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;artifacts/&lt;/b&gt;&lt;br&gt;Relatórios JSON&lt;br&gt;planos e diagnósticos" vertex="1">
+          <mxGeometry height="72" width="290" x="85" y="615" as="geometry" />
+        </mxCell>
+        <mxCell id="jobs_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9ca3af;fontColor=#111827;fontSize=15;fontStyle=1;verticalAlign=top;spacingTop=14;" value="Jobs sequenciais" vertex="1">
+          <mxGeometry height="600" width="300" x="505" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="job_note" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=none;fillColor=none;fontSize=12;fontColor=#4b5563;align=center;" value="Cada job materializa arquivos, tabelas e metadados." vertex="1">
+          <mxGeometry height="35" width="240" x="535" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="raw_job" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;0. Raw audit&lt;/b&gt;&lt;br&gt;Valida CSVs e registra eventos" vertex="1">
+          <mxGeometry height="72" width="230" x="540" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze_job" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;1. Bronze&lt;/b&gt;&lt;br&gt;Padroniza schema e publica Parquet" vertex="1">
+          <mxGeometry height="72" width="230" x="540" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="silver_job" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;2. Silver&lt;/b&gt;&lt;br&gt;Executa SQLs de features e agregações" vertex="1">
+          <mxGeometry height="72" width="230" x="540" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="gold_job" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;3. Gold&lt;/b&gt;&lt;br&gt;Publica Star Schema, métricas e ML feature store" vertex="1">
+          <mxGeometry height="82" width="230" x="540" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="warehouse_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#9ca3af;fontColor=#111827;fontSize=15;fontStyle=1;verticalAlign=top;spacingTop=14;" value="Warehouse DuckDB - Camada lógica" vertex="1">
+          <mxGeometry height="600" width="380" x="895" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="warehouse_note" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=none;fillColor=none;fontSize=12;fontColor=#4b5563;align=center;" value="Tabelas consultáveis, schemas analíticos e metadados." vertex="1">
+          <mxGeometry height="35" width="320" x="925" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="metadata_schema" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;schema metadados&lt;/b&gt;&lt;br&gt;raw_validation_events&lt;br&gt;pipeline_events" vertex="1">
+          <mxGeometry height="72" width="310" x="930" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze_schema" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;schema bronze&lt;/b&gt;&lt;br&gt;Tabelas técnicas carregadas&lt;br&gt;a partir dos Parquets bronze" vertex="1">
+          <mxGeometry height="72" width="310" x="930" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="silver_schema" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;schema silver&lt;/b&gt;&lt;br&gt;applications&lt;br&gt;agregações externa e interna" vertex="1">
+          <mxGeometry height="72" width="310" x="930" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="gold_schema" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;fontSize=13;fontColor=#111827;" value="&lt;b&gt;schema gold&lt;/b&gt;&lt;br&gt;fact_credit_risk + dimensões&lt;br&gt;credit_risk_feature_store" vertex="1">
+          <mxGeometry height="82" width="310" x="930" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="consumption_container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9ca3af;fontColor=#111827;fontSize=15;fontStyle=1;verticalAlign=top;spacingTop=14;" value="Consumo final" vertex="1">
+          <mxGeometry height="220" width="230" x="1320" y="375" as="geometry" />
+        </mxCell>
+        <mxCell id="dashboard_consumer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;Dashboard executivo&lt;/b&gt;&lt;br&gt;Consulta Star Schema Gold&lt;br&gt;fato + dimensões" vertex="1">
+          <mxGeometry height="72" width="180" x="1345" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="ml_consumer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2f7;strokeColor=#4b5563;fontSize=13;fontColor=#111827;" value="&lt;b&gt;Modelagem ML&lt;/b&gt;&lt;br&gt;Consulta Gold feature store&lt;br&gt;previsão de inadimplência" vertex="1">
+          <mxGeometry height="72" width="180" x="1345" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#d1d5db;fontSize=12;fontColor=#374151;align=left;spacing=10;" value="&lt;b&gt;Leitura do diagrama&lt;/b&gt;&lt;br&gt;Camada física: arquivos persistidos para reprocessamento e entrega em Parquet.&lt;br&gt;Warehouse DuckDB: camada lógica consultável, com schemas, tabelas e metadados.&lt;br&gt;Os jobs escrevem nos dois lados: arquivos físicos e tabelas no warehouse." vertex="1">
+          <mxGeometry height="95" width="810" x="370" y="805" as="geometry" />
+        </mxCell>
+        <mxCell id="seq_raw_bronze" edge="1" parent="1" source="raw_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6b7280;endArrow=block;endFill=1;" target="bronze_job">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="seq_bronze_silver" edge="1" parent="1" source="bronze_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6b7280;endArrow=block;endFill=1;" target="silver_job">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="seq_silver_gold" edge="1" parent="1" source="silver_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6b7280;endArrow=block;endFill=1;" target="gold_job">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="raw_to_job" edge="1" parent="1" source="raw_storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="raw_job" value="lê">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="raw_job_to_metadata" edge="1" parent="1" source="raw_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="metadata_schema" value="escreve eventos">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze_job_to_storage" edge="1" parent="1" source="bronze_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="bronze_storage" value="escreve Parquet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze_job_to_schema" edge="1" parent="1" source="bronze_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="bronze_schema" value="carrega tabelas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="silver_job_to_storage" edge="1" parent="1" source="silver_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="silver_storage" value="escreve Parquet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="silver_job_to_schema" edge="1" parent="1" source="silver_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="silver_schema" value="cria tabelas SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gold_job_to_storage" edge="1" parent="1" source="gold_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="gold_storage" value="escreve Parquet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gold_job_to_schema" edge="1" parent="1" source="gold_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=block;endFill=1;" target="gold_schema" value="cria tabelas&lt;div&gt;para BI + ML&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="jobs_to_artifacts" edge="1" parent="1" source="gold_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6b7280;endArrow=block;endFill=1;dashed=1;" target="artifacts_storage" value="todos publicam relatórios por camada">
+          <mxGeometry relative="1" x="-0.1246" y="9" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="655" y="651" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="jobs_to_metadata" edge="1" parent="1" source="gold_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6b7280;endArrow=block;endFill=1;dashed=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="metadata_schema" value="todos registram pipeline_events">
+          <mxGeometry relative="1" x="-0.0006" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="655" y="640" />
+              <mxPoint x="1260" y="640" />
+              <mxPoint x="1260" y="271" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gold_to_dashboard" edge="1" parent="1" source="gold_schema" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#374151;endArrow=none;endFill=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;startArrow=classic;startFill=1;" target="consumption_container" value="consulta">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1085" y="620" />
+              <mxPoint x="1435" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

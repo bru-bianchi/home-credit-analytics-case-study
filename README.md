@@ -51,7 +51,7 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 - `sql/`: transformações SQL versionadas das camadas `silver` e `gold`
 - `src/`: código Python do pipeline por camada e utilitários compartilhados
 
-[Diagrama Draw.io do fluxo do pipeline](./docs/fluxo_pipeline.drawio)
+![Diagrama Draw.io do fluxo do pipeline](./docs/fluxo_pipeline.png)
 
 **Observação:** Os itens abaixo seguem a ordem sugerida pelo enunciado do case (1-5).
 
@@ -74,10 +74,11 @@ utilizar as bases para criação de modelos estatísticos e análises favorávei
 
 ## 3. Camada de Consumo Analítico (GOLD)
 
-- **Objetivo:** sevir como camada de análise do time de negócio e origem de dashboards
+- **Objetivo:** servir como camada de análise do time de negócio, origem de dashboards e base curada para modelagem
+  preditiva de inadimplência
 - Organizada em modelo dimensional para BI (Star Schema), com fato central de risco de crédito, dimensões de
-  solicitante (cliente), contrato e segmento de risco, além de métricas consolidadas de inadimplência, exposição financeira,
-  histórico externo/interno, uso de crédito e completude cadastral para dashboards e análises estatísticas
+  solicitante (cliente), contrato e segmento de risco, além de uma feature store de ML com variáveis curadas, one-hot
+  encodings e sinais consolidados de capacidade financeira, histórico externo/interno, atraso e completude cadastral
 - Documentação detalhada: [Estruturação da Gold](/docs/ingestao_gold.md)
 
 ## 4. Dashboard de Insights sobre Inadimplência
