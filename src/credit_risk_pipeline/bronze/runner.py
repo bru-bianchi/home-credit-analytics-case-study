@@ -5,8 +5,16 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from credit_risk_analysis.raw.config import RAW_TABLES
-from utils import close_duckdb_connection, get_table_schema, open_duckdb_connection, table_exists
+from credit_risk_pipeline.raw.config import RAW_TABLES
+from utils import (
+    close_duckdb_connection,
+    ensure_runtime_directories,
+    get_table_schema,
+    normalize_schema_rows,
+    open_duckdb_connection,
+    table_exists,
+    write_execution_report,
+)
 from utils.duckdb_utils import quote_identifier, quote_string, read_csv_relation
 from utils.metadata_store import PIPELINE_EVENTS_TABLE
 
@@ -26,19 +34,10 @@ from .transformation_builder import (
     resolve_raw_csv_path,
 )
 
-
-def normalize_schema_rows(rows):
-    """Keep only column name, type and nullability for stable schema comparison."""
-
-    return [(row[0], row[1].upper(), row[2].upper()) for row in rows]
-
-
 def ensure_bronze_runtime_directories():
     """Ensure bronze output directories exist before planning or execution."""
 
-    BRONZE_DIR.mkdir(parents=True, exist_ok=True)
-    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    WAREHOUSE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ensure_runtime_directories(BRONZE_DIR, ARTIFACTS_DIR, WAREHOUSE_PATH)
 
 
 def select_bronze_tables(selected_tables=None):
@@ -453,14 +452,12 @@ def write_bronze_dry_run_report(run_report):
 def write_bronze_execution_report(run_report):
     """Persist the bronze execution report and raise if any table failed."""
 
-    report_path = ARTIFACTS_DIR / "bronze_transformation_report.json"
-    report_path.write_text(json.dumps(run_report, indent=2), encoding="utf-8")
-    if run_report["table_count_failed"] > 0:
-        raise RuntimeError(
-            "bronze_transformation_failed: one or more bronze tables failed to load. "
-            f"See '{report_path}' and metadados.pipeline_events for details."
-        )
-    return run_report
+    return write_execution_report(
+        run_report,
+        ARTIFACTS_DIR,
+        "bronze_transformation_report.json",
+        "bronze_transformation_failed",
+    )
 
 
 def build_bronze_layer(selected_tables=None, dry_run=False):

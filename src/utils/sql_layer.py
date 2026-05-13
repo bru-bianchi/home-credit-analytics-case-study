@@ -1,17 +1,13 @@
-"""Execution layer for bronze-to-silver SQL transformations and parquet export."""
+"""Reusable helpers for SQL-driven transformed layers such as silver and gold."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import re
 from collections import defaultdict, deque
-from datetime import datetime
 from pathlib import Path
 
-from utils import (
-    PIPELINE_EVENTS_TABLE,
-    close_duckdb_connection,
+from .duckdb_utils import (
     execute_sql_script,
     export_table_to_parquet,
     get_table_schema,
@@ -19,25 +15,7 @@ from utils import (
     read_sql_file,
     table_exists,
 )
-
-from .config import ARTIFACTS_DIR, SILVER_DIR, SILVER_SQL_DIR, SILVER_TRANSFORMATION_VERSION, WAREHOUSE_PATH
-from .create_metadata import (
-    append_table_report,
-    create_metadata_tables,
-    finalize_run_report,
-    initialize_run_report,
-    persist_run_report,
-)
-
-
-CREATE_TABLE_PATTERN = re.compile(
-    r"CREATE\s+OR\s+REPLACE\s+TABLE\s+silver\.(?P<table_name>[A-Za-z_][A-Za-z0-9_]*)",
-    re.IGNORECASE,
-)
-SOURCE_TABLE_PATTERN = re.compile(
-    r"\b(?P<schema_name>bronze|silver)\.(?P<table_name>[A-Za-z_][A-Za-z0-9_]*)\b",
-    re.IGNORECASE,
-)
+from .metadata_store import PIPELINE_EVENTS_TABLE
 
 
 def normalize_schema_rows(rows):
@@ -53,41 +31,41 @@ def build_digest(payload) -> str:
     return hashlib.sha256(normalized_payload.encode("utf-8")).hexdigest()
 
 
-def ensure_silver_runtime_directories():
-    """Ensure silver output directories exist before execution."""
+def ensure_runtime_directories(output_dir: Path, artifacts_dir: Path, warehouse_path: Path):
+    """Ensure all runtime directories for one transformed layer exist."""
 
-    SILVER_DIR.mkdir(parents=True, exist_ok=True)
-    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    WAREHOUSE_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-
-def discover_silver_sql_files():
-    """Return the ordered silver SQL files available in the repository."""
-
-    return sorted(SILVER_SQL_DIR.glob("*.sql"))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    warehouse_path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def extract_target_table_name(sql_path: Path, sql_text: str | None = None) -> str:
-    """Read a silver SQL file and infer the target silver table name."""
+def discover_sql_files(sql_dir: Path):
+    """Return the ordered SQL files available for one layer."""
+
+    return sorted(sql_dir.glob("*.sql"))
+
+
+def extract_target_table_name(sql_path: Path, create_table_pattern, sql_text: str | None = None) -> str:
+    """Read a SQL file and infer its target table name."""
 
     sql_text = sql_text if sql_text is not None else read_sql_file(sql_path)
-    match = CREATE_TABLE_PATTERN.search(sql_text)
+    match = create_table_pattern.search(sql_text)
     if match is None:
         raise RuntimeError(
-            f"silver_sql_target_not_found: expected CREATE OR REPLACE TABLE silver.<table> in '{sql_path.name}'."
+            f"sql_target_not_found: expected target CREATE OR REPLACE TABLE in '{sql_path.name}'."
         )
     return match.group("table_name")
 
 
-def extract_source_dependencies(sql_text: str, target_table_name: str):
-    """Extract bronze/silver source tables referenced by one silver SQL file."""
+def extract_source_dependencies(sql_text: str, target_table_name: str, source_table_pattern, self_schema_name: str):
+    """Extract source tables referenced by one SQL file."""
 
     dependencies = []
     seen = set()
-    for match in SOURCE_TABLE_PATTERN.finditer(sql_text):
+    for match in source_table_pattern.finditer(sql_text):
         schema_name = match.group("schema_name").lower()
         table_name = match.group("table_name")
-        if schema_name == "silver" and table_name == target_table_name:
+        if schema_name == self_schema_name and table_name == target_table_name:
             continue
         dependency_key = f"{schema_name}.{table_name}"
         if dependency_key in seen:
@@ -103,30 +81,8 @@ def extract_source_dependencies(sql_text: str, target_table_name: str):
     return dependencies
 
 
-def load_silver_sql_catalog(selected_tables=None):
-    """Load selected silver SQL files with target table names and dependencies."""
-
-    selected = set(selected_tables or [])
-    sql_catalog = []
-    for sql_path in discover_silver_sql_files():
-        sql_text = read_sql_file(sql_path)
-        table_name = extract_target_table_name(sql_path, sql_text=sql_text)
-        if selected and table_name not in selected:
-            continue
-        sql_catalog.append(
-            {
-                "sql_path": sql_path,
-                "sql_text": sql_text,
-                "table_name": table_name,
-                "dependencies": extract_source_dependencies(sql_text, table_name),
-                "sql_fingerprint": hashlib.sha256(sql_text.encode("utf-8")).hexdigest(),
-            }
-        )
-    return topologically_sort_silver_sql_catalog(sql_catalog)
-
-
-def topologically_sort_silver_sql_catalog(sql_catalog):
-    """Order selected silver SQL files so silver-on-silver dependencies run first."""
+def topologically_sort_sql_catalog(sql_catalog, dependency_schema_name: str):
+    """Order SQL files so self-schema dependencies run first."""
 
     if not sql_catalog:
         return []
@@ -138,7 +94,7 @@ def topologically_sort_silver_sql_catalog(sql_catalog):
 
     for item in sql_catalog:
         for dependency in item["dependencies"]:
-            if dependency["schema_name"] != "silver":
+            if dependency["schema_name"] != dependency_schema_name:
                 continue
             dependency_table = dependency["table_name"]
             if dependency_table not in selected_tables:
@@ -159,55 +115,73 @@ def topologically_sort_silver_sql_catalog(sql_catalog):
     if len(ordered) != len(sql_catalog):
         unresolved = sorted(table_name for table_name, degree in in_degree.items() if degree > 0)
         raise RuntimeError(
-            "silver_dependency_cycle_detected: cyclic dependencies found among selected silver SQL files. "
+            "sql_dependency_cycle_detected: cyclic dependencies found among selected SQL files. "
             f"tables={unresolved}"
         )
 
     return ordered
 
 
-def initialize_silver_warehouse():
-    """Open and initialize the silver warehouse structures."""
+def load_sql_catalog(
+    *,
+    sql_dir: Path,
+    create_table_pattern,
+    source_table_pattern,
+    self_schema_name: str,
+    selected_tables=None,
+):
+    """Load selected SQL files with target table names and dependencies."""
 
-    connection = open_duckdb_connection(WAREHOUSE_PATH)
-    connection.execute("CREATE SCHEMA IF NOT EXISTS silver;")
+    selected = set(selected_tables or [])
+    sql_catalog = []
+    for sql_path in discover_sql_files(sql_dir):
+        sql_text = read_sql_file(sql_path)
+        table_name = extract_target_table_name(sql_path, create_table_pattern, sql_text=sql_text)
+        if selected and table_name not in selected:
+            continue
+        sql_catalog.append(
+            {
+                "sql_path": sql_path,
+                "sql_text": sql_text,
+                "table_name": table_name,
+                "dependencies": extract_source_dependencies(
+                    sql_text, table_name, source_table_pattern, self_schema_name
+                ),
+                "sql_fingerprint": hashlib.sha256(sql_text.encode("utf-8")).hexdigest(),
+            }
+        )
+    return topologically_sort_sql_catalog(sql_catalog, dependency_schema_name=self_schema_name)
+
+
+def initialize_sql_warehouse(schema_name: str, warehouse_path: Path, create_metadata_tables):
+    """Open and initialize one SQL-driven warehouse schema."""
+
+    connection = open_duckdb_connection(warehouse_path)
+    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name};")
     create_metadata_tables(connection)
     return connection
 
 
-def initialize_silver_run_report(table_names):
-    """Create the run report structure for the current silver execution."""
+def collect_table_metrics(connection, schema_name: str, table_name: str, *, row_count_key: str, column_count_key: str):
+    """Collect row and column counts for one materialized table."""
 
-    started_at_utc = datetime.utcnow().replace(microsecond=0)
-    return initialize_run_report(
-        started_at_utc=started_at_utc,
-        warehouse_path=WAREHOUSE_PATH,
-        silver_directory=SILVER_DIR,
-        sql_directory=SILVER_SQL_DIR,
-        table_names=table_names,
-    )
-
-
-def collect_silver_table_metrics(connection, table_name):
-    """Collect row and column counts for a silver table already loaded in the warehouse."""
-
-    row_count = connection.execute(f"SELECT COUNT(*) FROM silver.{table_name}").fetchone()[0]
-    schema_rows = get_table_schema(connection, "silver", table_name) or []
+    row_count = connection.execute(f"SELECT COUNT(*) FROM {schema_name}.{table_name}").fetchone()[0]
+    schema_rows = get_table_schema(connection, schema_name, table_name) or []
     normalized_schema = normalize_schema_rows(schema_rows)
     return {
-        "silver_row_count": row_count,
-        "silver_column_count": len(schema_rows),
+        row_count_key: row_count,
+        column_count_key: len(schema_rows),
         "schema": normalized_schema,
     }
 
 
-def execute_silver_sql_file(connection, sql_path: Path, table_name: str):
-    """Execute one silver SQL script and export the resulting table to parquet."""
+def execute_sql_file(connection, schema_name: str, output_dir: Path, sql_path: Path, table_name: str):
+    """Execute one SQL script and export the resulting table to parquet."""
 
-    connection.execute("CREATE SCHEMA IF NOT EXISTS silver;")
+    connection.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name};")
     execute_sql_script(connection, sql_path)
-    parquet_path = SILVER_DIR / f"{table_name}.parquet"
-    export_table_to_parquet(connection, "silver", table_name, parquet_path)
+    parquet_path = output_dir / f"{table_name}.parquet"
+    export_table_to_parquet(connection, schema_name, table_name, parquet_path)
     return parquet_path
 
 
@@ -269,7 +243,7 @@ def build_source_fingerprint_from_physical_table(connection, schema_name: str, t
     schema_rows = get_table_schema(connection, schema_name, table_name)
     if schema_rows is None:
         raise RuntimeError(
-            f"silver_source_table_not_found: source table '{schema_name}.{table_name}' does not exist."
+            f"source_table_not_found: source table '{schema_name}.{table_name}' does not exist."
         )
 
     normalized_schema = normalize_schema_rows(schema_rows)
@@ -288,7 +262,7 @@ def build_source_fingerprint_from_physical_table(connection, schema_name: str, t
 
 
 def resolve_dependency_fingerprint(connection, dependency, current_table_fingerprints):
-    """Resolve the current fingerprint of one bronze/silver dependency."""
+    """Resolve the current fingerprint of one upstream dependency."""
 
     dependency_key = dependency["dependency_key"]
     if dependency_key in current_table_fingerprints:
@@ -314,7 +288,7 @@ def resolve_dependency_fingerprint(connection, dependency, current_table_fingerp
 
 
 def build_dependency_fingerprints(connection, dependencies, current_table_fingerprints):
-    """Build the current set of source fingerprints for one silver SQL file."""
+    """Build the current set of source fingerprints for one SQL file."""
 
     return {
         dependency["dependency_key"]: resolve_dependency_fingerprint(
@@ -326,8 +300,8 @@ def build_dependency_fingerprints(connection, dependencies, current_table_finger
     }
 
 
-def build_table_fingerprint(table_report):
-    """Build a fingerprint that represents the current published silver table."""
+def build_table_fingerprint(table_report, *, row_count_key: str, column_count_key: str, version_key: str):
+    """Build a fingerprint that represents the current published table."""
 
     return build_digest(
         {
@@ -335,38 +309,41 @@ def build_table_fingerprint(table_report):
             "sql_fingerprint": table_report["sql_fingerprint"],
             "source_fingerprints": table_report["source_fingerprints"],
             "schema": table_report["schema"],
-            "row_count": table_report["silver_row_count"],
-            "column_count": table_report["silver_column_count"],
-            "process_version": table_report["silver_transformation_version"],
+            "row_count": table_report[row_count_key],
+            "column_count": table_report[column_count_key],
+            "process_version": table_report[version_key],
         }
     )
 
 
 def can_reuse_cached_table(
     connection,
+    *,
+    schema_name: str,
+    layer_name: str,
     table_name: str,
     parquet_path: Path,
     sql_fingerprint: str,
     source_fingerprints,
-    silver_transformation_version: str,
+    transformation_version: str,
 ):
-    """Return cached silver metadata when the current inputs fully match a previous run."""
+    """Return cached metadata when the current inputs fully match a previous run."""
 
     if not parquet_path.exists():
         return None
 
-    existing_schema = get_table_schema(connection, "silver", table_name)
+    existing_schema = get_table_schema(connection, schema_name, table_name)
     if existing_schema is None:
         return None
 
-    cached_result = load_latest_pipeline_event(connection, "silver", table_name)
+    cached_result = load_latest_pipeline_event(connection, layer_name, table_name)
     if cached_result is None:
         return None
 
     cached_details = cached_result["details"]
     cached_schema = [tuple(row) for row in (cached_details.get("schema") or [])]
 
-    if cached_result["process_version"] != silver_transformation_version:
+    if cached_result["process_version"] != transformation_version:
         return None
     if cached_details.get("sql_fingerprint") != sql_fingerprint:
         return None
@@ -376,37 +353,64 @@ def can_reuse_cached_table(
         return None
 
     return {
-        "silver_row_count": cached_result["row_count"],
-        "silver_column_count": cached_result["column_count"],
+        "row_count": cached_result["row_count"],
+        "column_count": cached_result["column_count"],
         "schema": cached_schema,
         "table_fingerprint": cached_details.get("table_fingerprint"),
     }
 
 
-def write_silver_execution_report(run_report):
-    """Persist the silver execution report and raise if any table failed."""
+def write_execution_report(run_report, artifacts_dir: Path, report_file_name: str, error_prefix: str):
+    """Persist the execution report and raise if any table failed."""
 
-    report_path = ARTIFACTS_DIR / "silver_transformation_report.json"
+    report_path = artifacts_dir / report_file_name
     report_path.write_text(json.dumps(run_report, indent=2), encoding="utf-8")
     if run_report["table_count_failed"] > 0:
         raise RuntimeError(
-            "silver_transformation_failed: one or more silver tables failed to load. "
+            f"{error_prefix}: one or more tables failed to load. "
             f"See '{report_path}' and metadados.pipeline_events for details."
         )
     return run_report
 
 
-def build_silver_layer(selected_tables=None):
-    """Build silver tables from versioned DuckDB SQL and export them to parquet."""
+def build_sql_layer(
+    selected_tables=None,
+    *,
+    layer_name: str,
+    schema_name: str,
+    sql_dir: Path,
+    output_dir: Path,
+    artifacts_dir: Path,
+    warehouse_path: Path,
+    transformation_version: str,
+    create_table_pattern,
+    source_table_pattern,
+    create_metadata_tables,
+    initialize_run_report,
+    append_table_report,
+    finalize_run_report,
+    persist_run_report,
+):
+    """Build one SQL-driven layer from versioned SQL files and export them to parquet."""
 
-    ensure_silver_runtime_directories()
-    sql_catalog = load_silver_sql_catalog(selected_tables)
-    run_report = initialize_silver_run_report([item["table_name"] for item in sql_catalog])
+    row_count_key = f"{layer_name}_row_count"
+    column_count_key = f"{layer_name}_column_count"
+    version_key = f"{layer_name}_transformation_version"
+
+    ensure_runtime_directories(output_dir, artifacts_dir, warehouse_path)
+    sql_catalog = load_sql_catalog(
+        sql_dir=sql_dir,
+        create_table_pattern=create_table_pattern,
+        source_table_pattern=source_table_pattern,
+        self_schema_name=schema_name,
+        selected_tables=selected_tables,
+    )
+    run_report = initialize_run_report([item["table_name"] for item in sql_catalog])
     connection = None
     current_table_fingerprints = {}
 
     try:
-        connection = initialize_silver_warehouse()
+        connection = initialize_sql_warehouse(schema_name, warehouse_path, create_metadata_tables)
 
         for item in sql_catalog:
             table_name = item["table_name"]
@@ -414,8 +418,8 @@ def build_silver_layer(selected_tables=None):
                 run_report=run_report,
                 table_name=table_name,
                 sql_file_name=item["sql_path"].name,
-                parquet_path=SILVER_DIR / f"{table_name}.parquet",
-                silver_transformation_version=SILVER_TRANSFORMATION_VERSION,
+                parquet_path=output_dir / f"{table_name}.parquet",
+                transformation_version=transformation_version,
             )
             table_report["sql_fingerprint"] = item["sql_fingerprint"]
             table_report["source_dependencies"] = [
@@ -429,39 +433,68 @@ def build_silver_layer(selected_tables=None):
                     current_table_fingerprints,
                 )
                 cached_result = can_reuse_cached_table(
-                    connection=connection,
+                    connection,
+                    schema_name=schema_name,
+                    layer_name=layer_name,
                     table_name=table_name,
                     parquet_path=Path(table_report["parquet_path"]),
                     sql_fingerprint=item["sql_fingerprint"],
                     source_fingerprints=table_report["source_fingerprints"],
-                    silver_transformation_version=SILVER_TRANSFORMATION_VERSION,
+                    transformation_version=transformation_version,
                 )
                 if cached_result is not None:
                     table_report["used_cached_transformation"] = True
-                    table_report["silver_row_count"] = cached_result["silver_row_count"]
-                    table_report["silver_column_count"] = cached_result["silver_column_count"]
+                    table_report[row_count_key] = cached_result["row_count"]
+                    table_report[column_count_key] = cached_result["column_count"]
                     table_report["schema"] = cached_result["schema"]
                     table_report["table_fingerprint"] = (
-                        cached_result["table_fingerprint"] or build_table_fingerprint(table_report)
+                        cached_result["table_fingerprint"]
+                        or build_table_fingerprint(
+                            table_report,
+                            row_count_key=row_count_key,
+                            column_count_key=column_count_key,
+                            version_key=version_key,
+                        )
                     )
                     table_report["table_status"] = "skipped_cached_transformation"
-                    current_table_fingerprints[f"silver.{table_name}"] = table_report["table_fingerprint"]
+                    current_table_fingerprints[f"{schema_name}.{table_name}"] = table_report["table_fingerprint"]
                     continue
 
-                parquet_path = execute_silver_sql_file(connection, item["sql_path"], table_name)
+                parquet_path = execute_sql_file(connection, schema_name, output_dir, item["sql_path"], table_name)
                 table_report["parquet_path"] = str(parquet_path)
-                table_report.update(collect_silver_table_metrics(connection, table_name))
-                table_report["table_fingerprint"] = build_table_fingerprint(table_report)
+                table_report.update(
+                    collect_table_metrics(
+                        connection,
+                        schema_name,
+                        table_name,
+                        row_count_key=row_count_key,
+                        column_count_key=column_count_key,
+                    )
+                )
+                table_report["table_fingerprint"] = build_table_fingerprint(
+                    table_report,
+                    row_count_key=row_count_key,
+                    column_count_key=column_count_key,
+                    version_key=version_key,
+                )
                 table_report["table_status"] = "success"
-                current_table_fingerprints[f"silver.{table_name}"] = table_report["table_fingerprint"]
+                current_table_fingerprints[f"{schema_name}.{table_name}"] = table_report["table_fingerprint"]
             except Exception as exc:
                 table_report["table_status"] = "failed"
                 table_report["error_message"] = f"{type(exc).__name__}: {exc}"
+
+        from datetime import datetime
 
         finished_at_utc = datetime.utcnow().replace(microsecond=0)
         finalize_run_report(run_report)
         persist_run_report(connection, run_report, finished_at_utc)
     finally:
-        close_duckdb_connection(connection)
+        if connection is not None:
+            connection.close()
 
-    return write_silver_execution_report(run_report)
+    return write_execution_report(
+        run_report,
+        artifacts_dir,
+        f"{layer_name}_transformation_report.json",
+        f"{layer_name}_transformation_failed",
+    )

@@ -6,8 +6,9 @@ import csv
 from functools import lru_cache
 from pathlib import Path
 
-from credit_risk_analysis.raw.config import RAW_TABLES
+from credit_risk_pipeline.raw.config import RAW_TABLES
 from utils.naming_utils import snake_case
+from utils.duckdb_utils import quote_string
 
 from .config import (
     BRONZE_COLUMN_MAPPING_PATH,
@@ -158,11 +159,19 @@ def load_sentinel_mapping():
             file_name = row["file_name"].strip()
             source_column = row["source_column"].strip()
             mapping[(file_name, source_column)] = {
-                "sentinel_sql": row["sentinel_sql"].strip(),
-                "replacement_sql": row["replacement_sql"].strip(),
+                "sentinel_sql": normalize_literal_sql(row["sentinel_sql"].strip()),
+                "replacement_sql": normalize_literal_sql(row["replacement_sql"].strip()),
                 "notes": row["notes"].strip() or None,
             }
     return mapping
+
+
+def normalize_literal_sql(value: str) -> str:
+    """Return a safe SQL literal for sentinel mapping values."""
+
+    if value.upper() == "NULL":
+        return "NULL"
+    return quote_string(value)
 
 
 def infer_identifier_nullable(source_column, reference_column):
