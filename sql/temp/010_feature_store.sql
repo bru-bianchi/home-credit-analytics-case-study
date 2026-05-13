@@ -1,8 +1,7 @@
--- Tabela final de agregação da Silver: nível application
+CREATE OR REPLACE TABLE gold.credit_risk_feature_store AS
 
-CREATE OR REPLACE TABLE silver.application_agg AS
-
--- Uma linha por sk_id_curr
+-- Uma linha por sk_id_curr - agrega informações de comportamento, severidade, histórico, agregando informações
+--     de todas as tabelas disponíveis na silver
 
 WITH bureau_info AS (
   SELECT
@@ -22,7 +21,7 @@ WITH bureau_info AS (
     SUM(CASE WHEN NOT flag_balance_missing THEN flag_recent_credit ELSE NULL END) AS bureau_recent_credit_count,
     MAX(CASE WHEN NOT flag_balance_missing THEN max_dpd_status ELSE NULL END) AS bureau_max_dpd_status,
 
-    -- Se DPD, qual o valor atual (pode ser 0 caso já tenha quitado)
+    -- Se DPD, qual o valor atual (pode ser 0 caso já tenha sido quitado)
     SUM(amt_credit_sum_overdue) AS bureau_total_overdue_amount,
     AVG(overdue_credit_ratio) AS bureau_avg_overdue_credit_ratio,
 
@@ -32,7 +31,7 @@ WITH bureau_info AS (
     
     AVG(credit_age_days) AS bureau_avg_credit_age_days
     
-FROM silver.bureau_info_agg
+FROM silver.agg_bureau_external_credit_behavior
 GROUP BY sk_id_curr
 ), 
 
@@ -77,10 +76,6 @@ previous_application_info AS (
       SUM(pos_total_dpd) AS pos_total_dpd,
       AVG(pos_total_dpd) AS pos_avg_dpd,
   
-      -- pensar nessas
-      -- SUM(amt_goods_price_known and flag_approved_application) AS prev_approved_with_known_amt_goods,
-      -- SUM(amt_goods_price_known and flag_refused_application) AS prev_refused_with_known_amt_goods,
-  
       -- Temporais
       SUM(flag_recent_application) AS prev_recent_application_count,
       SUM(flag_long_term_payment) AS prev_long_term_pay_application,
@@ -102,7 +97,7 @@ previous_application_info AS (
           ELSE NULL
       END AS prev_goods_vs_application_ratio
           
-  FROM silver.previous_application_agg
+  FROM silver.agg_internal_historical_behavior
   GROUP BY sk_id_curr
 )
 
