@@ -275,7 +275,7 @@ with (right):
 
 st.divider()
 
-min_clients = st.sidebar.number_input("Mínimo de clientes por grupo", min_value=1, value=500, step=100)
+min_clients = st.sidebar.number_input("Mínimo de clientes por grupo", min_value=1, value=100, step=100)
 
 combined_profile = query_df(
     """

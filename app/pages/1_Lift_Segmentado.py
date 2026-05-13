@@ -167,14 +167,8 @@ st.caption("Representatividade = % dentro do grupo de inadimplentes (target = 1)
 min_clients = st.sidebar.number_input(
     "Mínimo de clientes por perfil",
     min_value=100,
-    value=1000,
+    value=100,
     step=100,
-)
-min_credit_amount = st.sidebar.number_input(
-    "Volume de crédito mínimo por perfil (R$)",
-    min_value=0,
-    value=50_000_000,
-    step=10_000_000,
 )
 
 flag_metrics = query_df(
